@@ -1,34 +1,34 @@
 ---
-description: Memory-Bank 工作流协议 — 定义知识温度体系和四阶段工作流。Agent 在每次对话开始时应据此加载 memory-bank。
+description: Memory-Bank 工作流协议 — 定义知识温度体系和四阶段工作流。Agent 在每次对话开始时应据此加载 memory_bank。
 alwaysApply: true
 ---
 
 # Memory-Bank Protocol
 
-本项目使用 `memory-bank/` 目录作为外部记忆系统。你在每次对话开始时必须按温度等级加载知识。
+本项目使用 `memory_bank/` 目录作为外部记忆系统。你在每次对话开始时必须按温度等级加载知识。
 
 ## 知识温度体系
 
 ### 🔥 HOT — 每次对话必读
 对话开始后立即读取：
-- `memory-bank/project-brief.md` — 核心愿景、受众、功能边界
-- `memory-bank/architecture.md` — 技术栈、顶层目录结构
-- `memory-bank/data-contracts.md` — 数据库表结构、API 格式
-- `memory-bank/conventions.md` — 代码规范、命名约定
-- `memory-bank/active-task.md` — 当前任务和限制
-- `memory-bank/progress.md` — 历次会话摘要
+- `memory_bank/project-brief.md` — 核心愿景、受众、功能边界
+- `memory_bank/architecture.md` — 技术栈、顶层目录结构
+- `memory_bank/data-contracts.md` — 数据库表结构、API 格式
+- `memory_bank/conventions.md` — 代码规范、命名约定
+- `memory_bank/active-task.md` — 当前任务和限制
+- `memory_bank/progress.md` — 历次会话摘要
 
 ### 🌡️ WARM — 按需加载
 涉及相关模块时才读取：
-- `memory-bank/roadmap.md`
-- `memory-bank/changelog.md`
-- `memory-bank/domains/*.md`
+- `memory_bank/roadmap.md`
+- `memory_bank/changelog.md`
+- `memory_bank/domains/*.md`
 
 ### 🧊 COLD — 排查时读取
 遇到决策疑问或 Bug 时自行判断是否需要：
-- `memory-bank/decisions.md` — 架构决策记录
-- `memory-bank/known-issues.md` — 已知坑位与调试心得
-- `memory-bank/glossary.md` — 项目术语表
+- `memory_bank/decisions.md` — 架构决策记录
+- `memory_bank/known-issues.md` — 已知坑位与调试心得
+- `memory_bank/glossary.md` — 项目术语表
 
 ## 四阶段工作流
 
@@ -42,7 +42,7 @@ alwaysApply: true
 遵循单一职责原则。遵循 conventions.md。不随意删除与当前任务无关的代码。注释解释"为什么"而非"做了什么"。
 
 ### 4. Update Phase（对话结束时必须执行）
-- **必须追加** `memory-bank/progress.md`（完成事项、踩坑记录、遗留问题、下一步建议）
+- **必须追加** `memory_bank/progress.md`（完成事项、踩坑记录、遗留问题、下一步建议）
 - 修改了数据结构/API → 更新 `data-contracts.md`
 - 改变了目录结构 → 更新 `architecture.md`
 - 做了架构决策 → 追加 `decisions.md`
