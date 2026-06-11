@@ -60,6 +60,17 @@ def extract_section(body: str, section_name: str) -> str | None:
     return sections.get(section_name)
 
 
+def replace_section(body: str, section_name: str, new_content: str) -> str:
+    pattern = re.compile(
+        rf"(^## {re.escape(section_name)}\s*$\n)(.*?)(?=^## |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(body)
+    if match is None:
+        raise ValueError(f"Section not found: {section_name}")
+    return pattern.sub(lambda m: f"{m.group(1)}{new_content.rstrip()}\n\n", body, count=1)
+
+
 def missing_required_fields(metadata: dict[str, object]) -> tuple[str, ...]:
     return tuple(field for field in REQUIRED_FRONT_MATTER_FIELDS if field not in metadata)
 

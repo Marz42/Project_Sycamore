@@ -50,6 +50,44 @@ def get_node_by_id(connection: sqlite3.Connection, node_id: str) -> AbilityNode 
     return _row_to_node(row)
 
 
+class NodeRepositoryError(Exception):
+    """Raised when node lookup rules are violated."""
+
+
+def resolve_node_identifier(connection: sqlite3.Connection, identifier: str) -> AbilityNode:
+    exact = get_node_by_id(connection, identifier)
+    if exact is not None:
+        return exact
+
+    by_slug = get_node_by_slug(connection, identifier)
+    if by_slug is not None:
+        return by_slug
+
+    prefix_matches = connection.execute(
+        "SELECT * FROM ability_nodes WHERE id LIKE ?;",
+        (f"{identifier}%",),
+    ).fetchall()
+    if len(prefix_matches) == 1:
+        return _row_to_node(prefix_matches[0])
+    if len(prefix_matches) > 1:
+        raise NodeRepositoryError(
+            f"Node identifier '{identifier}' matches multiple nodes. Use a longer prefix or slug."
+        )
+
+    raise NodeRepositoryError(f"Node not found: {identifier}")
+
+
+def update_review_status(
+    connection: sqlite3.Connection,
+    node_id: str,
+    review_status: ReviewStatus,
+) -> None:
+    connection.execute(
+        "UPDATE ability_nodes SET review_status = ? WHERE id = ?;",
+        (review_status.value, node_id),
+    )
+
+
 def get_node_by_slug(connection: sqlite3.Connection, slug: str) -> AbilityNode | None:
     row = connection.execute(
         "SELECT * FROM ability_nodes WHERE slug = ?;",

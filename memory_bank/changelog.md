@@ -12,6 +12,29 @@
 
 ---
 
+## [0.7.0] - 2026-06-11
+
+### Added
+
+- 实现 `syca practice`：追加 Practice Log、刷新索引、记录 `practice_logged`。
+- 实现 `syca level set`：更新 Markdown `claimedLevel` 与 `manual_level_changed` 事件。
+- 实现 `syca status --stale`：基于 CapabilityEvent 推导新鲜度（默认 30 天，可配置）。
+- `config.toml` 新增 `[freshness] stale_after_days`。
+
+---
+
+## [0.6.0] - 2026-06-11
+
+### Added
+
+- 实现 `ReviewRun` 模型、`review_repository` 与 `reviews/*.json` 原始归档。
+- 实现 mock Review Provider（`p1-critique-v1` prompt）。
+- 实现 `syca review <node-id> --dry-run` 与 `syca review <node-id>`。
+- 评审后更新节点 `review_status` 为 `challenged`，记录 `review_completed` 事件。
+- 支持 node id / slug / UUID 前缀解析（与后续 P0.7 方向一致）。
+
+---
+
 ## [0.5.0] - 2026-06-11
 
 ### Added

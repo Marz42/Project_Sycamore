@@ -34,6 +34,13 @@ class ReviewStatus(StrEnum):
     ACCEPTED_BY_USER = "accepted_by_user"
 
 
+class UserDecision(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    IGNORED = "ignored"
+    REVISED = "revised"
+
+
 class CapabilityEventType(StrEnum):
     CAPTURE_CREATED = "capture_created"
     CAPTURE_PROMOTED = "capture_promoted"

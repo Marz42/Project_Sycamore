@@ -467,6 +467,47 @@ syca doctor
 - 是否存在孤儿 Markdown。
 - 是否存在无效 Edge。
 
+## syca practice
+
+向节点 Practice Log 追加一条实践记录。
+
+```bash
+syca practice <node-id> --note "quick note"
+syca practice <node-id> --scenario "..." --action "..." --result "..." --pitfall "..."
+```
+
+行为：
+
+- 在 Markdown `## Practice Log` 顶部追加带时间戳条目。
+- 更新 Front Matter `updatedAt` 与 SQLite 索引 hash。
+- 记录 `practice_logged` 事件。
+
+## syca level set
+
+手动更新节点 `claimedLevel`。
+
+```bash
+syca level set <node-id> L2
+```
+
+行为：
+
+- 写回 Markdown Front Matter `claimedLevel`。
+- 更新 SQLite `ability_nodes.claimed_level`。
+- 记录 `manual_level_changed` 事件（payload 含 `previousLevel` / `newLevel`）。
+
+## syca status --stale
+
+基于 `CapabilityEvent` 与节点创建时间推导新鲜度，列出 stale 节点。
+
+```bash
+syca status --stale
+```
+
+默认阈值：`config.toml` 中 `[freshness] stale_after_days = 30`。
+
+计入新鲜度的活动事件：`practice_logged`、`cheatsheet_queried`、`review_completed`、`recovery_passed`、`manual_level_changed`。
+
 ## syca review
 
 P1 命令。创建 ReviewRun，不覆盖用户原文。

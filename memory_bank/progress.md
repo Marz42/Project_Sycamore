@@ -216,3 +216,42 @@
 
 **下一步建议**:
 - 提交 P0 代码与文档；启动 P1.1 ReviewRun + `syca review --dry-run` / mock review。
+
+### 2026-06-11 - P0 提交与 P1.1 ReviewRun 启动
+
+**完成事项**:
+- [x] Git commit `f92ad01`：P0 全量实现与 memory bank（v0.5.0）。
+- [x] 记录 promote UUID 摩擦：ADR-007、P0.7 backlog、`known-issues.md`。
+- [x] P1.1：`ReviewRun`、`mock` Provider、`syca review --dry-run` / `syca review`。
+- [x] Mental Model `### Core Idea` 提取与占位拒绝；`reviews/<id>.json` 归档。
+- [x] 30 项测试通过；版本号升至 `0.6.0`（P1 代码待下次提交）。
+
+**踩坑记录**:
+- Review 应用 `### Core Idea` 而非整个 Mental Model 区块，否则模板占位会导致误判。
+- `review_id` 须在写 JSON 与 insert_review_run 间保持一致。
+
+**遗留问题**:
+- [ ] P0.7 promote 短入口未实现。
+- [ ] P1.2 practice / stale / level set 未实现。
+- [ ] 真实 LLM Provider 未接入。
+
+**下一步建议**:
+- 实现 P0.7 promote 体验增强，或继续 P1.2 新鲜度命令。
+
+### 2026-06-11 - P1.2 practice / stale / level set
+
+**完成事项**:
+- [x] `syca practice`：Practice Log 追加、`practice_logged` 事件、索引 hash 刷新。
+- [x] `syca level set`：Front Matter + SQLite 等级更新、`manual_level_changed` 事件。
+- [x] `syca status --stale`：CapabilityEvent 新鲜度推导，支持 `config.toml` 阈值。
+- [x] 37 项测试通过；版本号升至 `0.7.0`。
+
+**踩坑记录**:
+- 新鲜度基准取 `max(node.created_at, 最近活动事件)`，避免新节点无事件时误判。
+
+**遗留问题**:
+- [ ] P0.7 promote 短入口未实现。
+- [ ] 真实 LLM Provider 未接入。
+
+**下一步建议**:
+- P0.7 promote 体验增强，或 P1 真实 Provider 适配器。

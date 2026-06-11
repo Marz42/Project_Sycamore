@@ -13,6 +13,9 @@ default_editor = ""
 [llm]
 enabled = false
 provider = ""
+
+[freshness]
+stale_after_days = 30
 """
 
 

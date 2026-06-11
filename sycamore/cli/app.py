@@ -8,8 +8,12 @@ from sycamore import __version__
 from sycamore.core.capture_service import create_capture, list_inbox
 from sycamore.core.doctor_service import run_doctor
 from sycamore.core.init_service import initialize_sycamore
+from sycamore.core.level_service import LevelError, set_claimed_level
+from sycamore.core.practice_service import PracticeError, log_practice
 from sycamore.core.promote_service import PromoteError, promote_capture
 from sycamore.core.query_service import query_cheatsheet
+from sycamore.core.review_service import ReviewError, preview_review, run_review
+from sycamore.core.status_service import list_stale_nodes
 from sycamore.core.sync_service import sync_nodes
 from sycamore.models.enums import CaptureKind, ClaimedLevel
 from sycamore.storage.database import DatabaseError
@@ -34,6 +38,25 @@ def _handle_database_error(error: DatabaseError) -> None:
 def _handle_promote_error(error: PromoteError) -> None:
     console.print(f"[red]{error}[/red]")
     raise typer.Exit(code=1) from error
+
+
+def _handle_review_error(error: ReviewError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+def _handle_practice_error(error: PracticeError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+def _handle_level_error(error: LevelError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+level_app = typer.Typer(help="Manage claimed ability levels.")
+app.add_typer(level_app, name="level")
 
 
 @app.command()
@@ -204,6 +227,129 @@ def sync() -> None:
         console.print(f"Updated index entries: {result.updated}")
     if result.skipped:
         console.print(f"[yellow]Skipped invalid files: {result.skipped}[/yellow]")
+
+
+@app.command()
+def review(
+    node_id: str,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview payload without calling Provider or saving."),
+    ] = False,
+) -> None:
+    """Run a critique review on a node's Mental Model."""
+    try:
+        if dry_run:
+            preview = preview_review(node_id)
+        else:
+            result = run_review(node_id)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except ReviewError as error:
+        _handle_review_error(error)
+
+    if dry_run:
+        assert preview is not None
+        console.print(f"[bold]Node:[/bold] {preview.node.title} ({preview.node.slug})")
+        console.print(f"[bold]Prompt version:[/bold] {preview.payload.prompt_version}")
+        console.print("[bold]Provider:[/bold] mock (dry-run)")
+        console.print(f"[bold]Mental model hash:[/bold] {preview.payload.mental_model_hash[:12]}...")
+        console.print("[bold]Mental Model preview:[/bold]")
+        console.print(preview.payload.mental_model)
+        return
+
+    assert result is not None
+    console.print(f"[green]Review completed[/green] {result.review_run.id}")
+    console.print(f"Node status: {result.node.review_status.value}")
+    console.print(f"Summary: {result.review_run.summary}")
+    console.print(f"Raw output: {result.raw_output_file}")
+
+
+@app.command()
+def practice(
+    node_id: str,
+    note: Annotated[str | None, typer.Option("--note", help="Quick practice note.")] = None,
+    scenario: Annotated[str | None, typer.Option("--scenario")] = None,
+    action: Annotated[str | None, typer.Option("--action")] = None,
+    result: Annotated[str | None, typer.Option("--result")] = None,
+    pitfall: Annotated[str | None, typer.Option("--pitfall")] = None,
+) -> None:
+    """Append a Practice Log entry to an AbilityNode."""
+    try:
+        practice_result = log_practice(
+            node_id,
+            note=note,
+            scenario=scenario,
+            action=action,
+            result=result,
+            pitfall=pitfall,
+        )
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except PracticeError as error:
+        _handle_practice_error(error)
+
+    console.print(f"[green]Practice logged[/green] for {practice_result.node.title}")
+    console.print(f"Entry time: {practice_result.entry_timestamp}")
+    console.print(f"Node file: {practice_result.node_file}")
+
+
+@level_app.command("set")
+def level_set(
+    node_id: str,
+    level: ClaimedLevel,
+) -> None:
+    """Set the claimed level on an AbilityNode."""
+    try:
+        result = set_claimed_level(node_id, level)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except LevelError as error:
+        _handle_level_error(error)
+
+    console.print(
+        f"[green]Updated[/green] {result.node.title}: "
+        f"{result.previous_level.value} -> {result.new_level.value}"
+    )
+
+
+@app.command()
+def status(
+    stale: Annotated[bool, typer.Option("--stale", help="Show nodes needing recovery practice.")] = False,
+) -> None:
+    """Show node status summaries."""
+    if not stale:
+        console.print("[red]P1 status currently requires --stale.[/red]")
+        raise typer.Exit(code=1)
+
+    try:
+        report = list_stale_nodes()
+    except DatabaseError as error:
+        _handle_database_error(error)
+
+    if not report.nodes:
+        console.print(
+            f"[green]No stale nodes[/green] (threshold: {report.stale_after_days} days)."
+        )
+        return
+
+    table = Table(title=f"Stale Nodes (>{report.stale_after_days} days)")
+    table.add_column("Title")
+    table.add_column("Slug")
+    table.add_column("Level")
+    table.add_column("Last Activity")
+    table.add_column("Days")
+
+    for item in report.nodes:
+        table.add_row(
+            item.node.title,
+            item.node.slug,
+            item.node.claimed_level.value,
+            item.last_activity_at,
+            str(item.days_since_activity),
+        )
+
+    console.print(table)
 
 
 @app.command()

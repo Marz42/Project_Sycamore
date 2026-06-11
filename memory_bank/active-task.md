@@ -80,17 +80,17 @@ P0 主循环：
 
 ## P1.1 ReviewRun 基础
 
-- [ ] 实现 `ReviewRun` 领域模型与 repository。
-- [ ] 实现 Mental Model 区块提取与 hash。
-- [ ] 实现 mock LLM Provider 与 Prompt 版本常量。
-- [ ] 实现 `syca review <node-id> --dry-run`。
-- [ ] 实现 `syca review <node-id>`（写入 ReviewRun JSON + SQLite，记录 `review_completed`）。
+- [x] 实现 `ReviewRun` 领域模型与 repository。
+- [x] 实现 Mental Model 区块提取与 hash。
+- [x] 实现 mock LLM Provider 与 Prompt 版本常量。
+- [x] 实现 `syca review <node-id> --dry-run`。
+- [x] 实现 `syca review <node-id>`（写入 ReviewRun JSON + SQLite，记录 `review_completed`）。
 
-## P1.2 能力新鲜度（后续）
+## P1.2 能力新鲜度
 
-- [ ] 实现 `syca practice <node-id>` 快速追加 Practice Log。
-- [ ] 实现 `syca status --stale`。
-- [ ] 实现 `syca level set <node-id> <level>`。
+- [x] 实现 `syca practice <node-id>` 快速追加 Practice Log。
+- [x] 实现 `syca status --stale`。
+- [x] 实现 `syca level set <node-id> <level>`。
 
 ---
 
