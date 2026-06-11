@@ -1,0 +1,57 @@
+---
+description: Memory-Bank 工作流协议 — 定义知识温度体系和四阶段工作流。Agent 在每次对话开始时应据此加载 memory-bank。
+alwaysApply: true
+---
+
+# Memory-Bank Protocol
+
+本项目使用 `memory-bank/` 目录作为外部记忆系统。你在每次对话开始时必须按温度等级加载知识。
+
+## 知识温度体系
+
+### 🔥 HOT — 每次对话必读
+对话开始后立即读取：
+- `memory-bank/project-brief.md` — 核心愿景、受众、功能边界
+- `memory-bank/architecture.md` — 技术栈、顶层目录结构
+- `memory-bank/data-contracts.md` — 数据库表结构、API 格式
+- `memory-bank/conventions.md` — 代码规范、命名约定
+- `memory-bank/active-task.md` — 当前任务和限制
+- `memory-bank/progress.md` — 历次会话摘要
+
+### 🌡️ WARM — 按需加载
+涉及相关模块时才读取：
+- `memory-bank/roadmap.md`
+- `memory-bank/changelog.md`
+- `memory-bank/domains/*.md`
+
+### 🧊 COLD — 排查时读取
+遇到决策疑问或 Bug 时自行判断是否需要：
+- `memory-bank/decisions.md` — 架构决策记录
+- `memory-bank/known-issues.md` — 已知坑位与调试心得
+- `memory-bank/glossary.md` — 项目术语表
+
+## 四阶段工作流
+
+### 1. Read Phase
+首先读取所有 🔥 HOT 文件。如果任务涉及特定模块，读取对应 🌡️ WARM 文件。
+
+### 2. Plan Phase
+写代码前用中文描述修改思路。如果修改涉及数据库结构或跨模块 API，必须先征求用户同意。
+
+### 3. Execution Phase
+遵循单一职责原则。遵循 conventions.md。不随意删除与当前任务无关的代码。注释解释"为什么"而非"做了什么"。
+
+### 4. Update Phase（对话结束时必须执行）
+- **必须追加** `memory-bank/progress.md`（完成事项、踩坑记录、遗留问题、下一步建议）
+- 修改了数据结构/API → 更新 `data-contracts.md`
+- 改变了目录结构 → 更新 `architecture.md`
+- 做了架构决策 → 追加 `decisions.md`
+- 踩坑并解决 → 追加 `known-issues.md`
+- **版本号评估**：根据 `conventions.md` 的"主动版本管理"规则判断是否需要递增版本号。需要时更新根目录 `VERSION` 文件和 `memory_bank/changelog.md`
+- 结束时告知用户："Memory-bank 已更新完毕。本次更新了：[文件列表]"
+
+## 防幻觉
+- 不确定某个模块逻辑时不要猜测，要求提供代码或解释
+- 遇到复杂逻辑，优先写独立的工具函数
+- 发现大泥球代码时，先提议重构再添加功能
+- 遇到术语不清时查阅 glossary.md
