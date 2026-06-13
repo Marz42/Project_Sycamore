@@ -6,9 +6,50 @@
 
 ## [Unreleased]
 
-### Planned
+---
 
-- P0.7：`syca promote --latest` / `--index` / UUID 前缀匹配，降低 inbox 升格摩擦（ADR-007）。
+## [0.11.0] - 2026-06-11
+
+### Added
+
+- `syca recover`：Recovery Drill 展示与 `--pass` / `--fail` 事件记录。
+- `syca link`：手动建立 `ability_edges` 关系。
+- `syca graph --domain`：域内能力关系列表。
+- `syca status --domain`：域内新鲜度视图。
+
+---
+
+## [0.10.0] - 2026-06-11
+
+### Added
+
+- 新增 `.env.example`：DeepSeek 默认 `deepseek-v4-pro`、`https://api.deepseek.com`。
+- 实现 `DeepSeekReviewProvider`（OpenAI 兼容 chat completions + JSON critique）。
+- CLI 启动时自动加载 `.env`（cwd 与 `SYCA_HOME`）。
+
+### Changed
+
+- 默认 `config.toml` `[llm]` provider 改为 `deepseek`；`enabled = false` 时 review 仍用 mock。
+
+---
+
+## [0.9.0] - 2026-06-11
+
+### Added
+
+- `syca promote` 无参默认升格最新 inbox 条目；支持 `--latest`、`--index <n>`、UUID 前缀匹配。
+- `syca inbox` 显示 `#` 序号与 ID 前 8 位，便于快速 promote。
+
+---
+
+## [0.8.0] - 2026-06-11
+
+### Added
+
+- 实现 `syca reviews list|accept|ignore|revised` 与 ReviewRun outdated 检测。
+- 实现 Review Provider 工厂：默认 mock，可选 `http` endpoint。
+- 支持节点 Front Matter `llmAllowed: false` 隐私门控。
+- `config.toml` 扩展 `[llm]` 配置项（provider、endpoint、model、api_key_env）。
 
 ---
 

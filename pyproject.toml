@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sycamore"
-version = "0.7.0"
+version = "0.11.0"
 description = "Local-first CLI for capability calibration and recovery."
 readme = "README.md"
 requires-python = ">=3.12"

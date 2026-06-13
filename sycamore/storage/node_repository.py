@@ -40,6 +40,14 @@ def list_all_nodes(connection: sqlite3.Connection) -> list[AbilityNode]:
     return [_row_to_node(row) for row in rows]
 
 
+def list_nodes_by_domain(connection: sqlite3.Connection, domain: str) -> list[AbilityNode]:
+    rows = connection.execute(
+        "SELECT * FROM ability_nodes WHERE domain = ? ORDER BY title COLLATE NOCASE;",
+        (domain,),
+    ).fetchall()
+    return [_row_to_node(row) for row in rows]
+
+
 def get_node_by_id(connection: sqlite3.Connection, node_id: str) -> AbilityNode | None:
     row = connection.execute(
         "SELECT * FROM ability_nodes WHERE id = ?;",

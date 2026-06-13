@@ -15,6 +15,7 @@ from sycamore.models.enums import (
     ClaimedLevel,
     ReviewStatus,
 )
+from sycamore.storage.capture_repository import list_inbox_captures
 from sycamore.storage.database import open_initialized_database
 from sycamore.utils.paths import DATABASE_FILENAME, NODES_DIRNAME, SYCA_HOME_ENV
 
@@ -120,3 +121,84 @@ def test_promote_cli_flow(syca_home: Path) -> None:
     assert "Promoted" in result.output
     assert "我能查看 Docker 容器状态" in result.output
     assert (syca_home / NODES_DIRNAME).exists()
+
+
+def test_promote_without_id_promotes_latest(syca_home: Path) -> None:
+    create_capture(kind=CaptureKind.NOTE, content="older")
+    latest = create_capture(kind=CaptureKind.CHEAT, content="kubectl get pods")
+
+    result = promote_capture()
+
+    assert result.capture.id == latest.id
+    assert "kubectl get pods" in result.node_file.read_text(encoding="utf-8")
+
+
+def test_promote_latest_flag_promotes_newest_inbox_item(syca_home: Path) -> None:
+    create_capture(kind=CaptureKind.NOTE, content="older")
+    latest = create_capture(kind=CaptureKind.CHEAT, content="git status")
+
+    result = promote_capture(latest=True)
+
+    assert result.capture.id == latest.id
+
+
+def test_promote_index_selects_inbox_row(syca_home: Path) -> None:
+    first = create_capture(kind=CaptureKind.NOTE, content="first")
+    create_capture(kind=CaptureKind.CHEAT, content="second")
+
+    result = promote_capture(index=2)
+
+    assert result.capture.content == "first"
+    assert result.capture.id == first.id
+
+
+def test_promote_accepts_unique_uuid_prefix(syca_home: Path) -> None:
+    capture = create_capture(kind=CaptureKind.LINK, content="https://example.com", source="https://example.com")
+
+    result = promote_capture(capture.id[:8], title="我能查阅该资料")
+
+    assert result.capture.id == capture.id
+
+
+def test_promote_rejects_ambiguous_uuid_prefix(syca_home: Path) -> None:
+    create_capture(kind=CaptureKind.NOTE, content="a")
+    create_capture(kind=CaptureKind.NOTE, content="b")
+    connection = open_initialized_database(syca_home / DATABASE_FILENAME)
+    try:
+        items = list_inbox_captures(connection)
+        for length in range(1, 9):
+            prefix = items[0].id[:length]
+            matches = [item for item in items if item.id.startswith(prefix)]
+            if len(matches) >= 2:
+                with pytest.raises(PromoteError, match="multiple inbox items"):
+                    promote_capture(prefix)
+                return
+        pytest.skip("Could not construct ambiguous prefix with two inbox items.")
+    finally:
+        connection.close()
+
+
+def test_promote_empty_inbox_without_selector_fails(syca_home: Path) -> None:
+    with pytest.raises(PromoteError, match="Inbox is empty"):
+        promote_capture()
+
+
+def test_promote_cli_without_id(syca_home: Path) -> None:
+    create_capture(kind=CaptureKind.CHEAT, content="uv run pytest")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["promote", "--title", "我能运行项目测试"])
+
+    assert result.exit_code == 0
+    assert "Promoted" in result.output
+
+
+def test_inbox_shows_index_and_short_id(syca_home: Path) -> None:
+    capture = create_capture(kind=CaptureKind.NOTE, content="hello inbox")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["inbox"])
+
+    assert result.exit_code == 0
+    assert "1" in result.output
+    assert capture.id[:8] in result.output

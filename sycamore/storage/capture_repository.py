@@ -128,3 +128,72 @@ def list_inbox_captures(connection: sqlite3.Connection) -> list[CaptureItem]:
         (CaptureStatus.INBOX.value,),
     ).fetchall()
     return [_row_to_capture(row) for row in rows]
+
+
+def resolve_capture_identifier(connection: sqlite3.Connection, identifier: str) -> CaptureItem:
+    exact = get_capture_by_id(connection, identifier)
+    if exact is not None:
+        if exact.status is not CaptureStatus.INBOX:
+            raise CaptureRepositoryError(
+                f"Capture {identifier} has status '{exact.status.value}' and cannot be promoted."
+            )
+        return exact
+
+    prefix_matches = connection.execute(
+        """
+        SELECT * FROM capture_items
+        WHERE id LIKE ? AND status = ?
+        ORDER BY created_at DESC;
+        """,
+        (f"{identifier}%", CaptureStatus.INBOX.value),
+    ).fetchall()
+    if len(prefix_matches) == 1:
+        return _row_to_capture(prefix_matches[0])
+    if len(prefix_matches) > 1:
+        raise CaptureRepositoryError(
+            f"Capture identifier '{identifier}' matches multiple inbox items. "
+            "Use a longer prefix, --index, or --latest."
+        )
+
+    raise CaptureRepositoryError(f"Capture not found in inbox: {identifier}")
+
+
+def resolve_inbox_capture(
+    connection: sqlite3.Connection,
+    *,
+    capture_id: str | None = None,
+    latest: bool = False,
+    index: int | None = None,
+) -> CaptureItem:
+    selectors = sum(
+        1
+        for value in (
+            capture_id is not None,
+            latest,
+            index is not None,
+        )
+        if value
+    )
+    if selectors > 1:
+        raise CaptureRepositoryError("Use only one of capture id, --latest, or --index.")
+
+    if latest or (capture_id is None and index is None):
+        items = list_inbox_captures(connection)
+        if not items:
+            raise CaptureRepositoryError("Inbox is empty. Nothing to promote.")
+        return items[0]
+
+    if index is not None:
+        if index < 1:
+            raise CaptureRepositoryError("--index must be 1 or greater.")
+        items = list_inbox_captures(connection)
+        if not items:
+            raise CaptureRepositoryError("Inbox is empty. Nothing to promote.")
+        if index > len(items):
+            raise CaptureRepositoryError(
+                f"Inbox index {index} is out of range. Current inbox has {len(items)} item(s)."
+            )
+        return items[index - 1]
+
+    assert capture_id is not None
+    return resolve_capture_identifier(connection, capture_id)

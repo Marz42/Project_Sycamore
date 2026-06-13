@@ -12,7 +12,11 @@ default_editor = ""
 
 [llm]
 enabled = false
-provider = ""
+provider = "deepseek"
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+api_key_env = "DEEPSEEK_API_KEY"
+endpoint = ""
 
 [freshness]
 stale_after_days = 30

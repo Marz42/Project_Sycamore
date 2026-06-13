@@ -7,15 +7,24 @@ from rich.table import Table
 from sycamore import __version__
 from sycamore.core.capture_service import create_capture, list_inbox
 from sycamore.core.doctor_service import run_doctor
+from sycamore.core.graph_service import GraphError, build_domain_graph
 from sycamore.core.init_service import initialize_sycamore
 from sycamore.core.level_service import LevelError, set_claimed_level
+from sycamore.core.link_service import LinkError, create_link
 from sycamore.core.practice_service import PracticeError, log_practice
 from sycamore.core.promote_service import PromoteError, promote_capture
 from sycamore.core.query_service import query_cheatsheet
-from sycamore.core.review_service import ReviewError, preview_review, run_review
-from sycamore.core.status_service import list_stale_nodes
+from sycamore.core.recover_service import RecoverError, preview_recovery_drill, record_recovery_outcome
+from sycamore.core.review_service import (
+    ReviewError,
+    decide_review,
+    list_node_reviews,
+    preview_review,
+    run_review,
+)
+from sycamore.models.enums import CaptureKind, ClaimedLevel, EdgeType, UserDecision
+from sycamore.core.status_service import list_domain_status, list_stale_nodes
 from sycamore.core.sync_service import sync_nodes
-from sycamore.models.enums import CaptureKind, ClaimedLevel
 from sycamore.storage.database import DatabaseError
 
 app = typer.Typer(
@@ -55,8 +64,26 @@ def _handle_level_error(error: LevelError) -> None:
     raise typer.Exit(code=1) from error
 
 
+def _handle_recover_error(error: RecoverError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+def _handle_link_error(error: LinkError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+def _handle_graph_error(error: GraphError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
 level_app = typer.Typer(help="Manage claimed ability levels.")
 app.add_typer(level_app, name="level")
+
+reviews_app = typer.Typer(help="Inspect and decide ReviewRuns.")
+app.add_typer(reviews_app, name="reviews")
 
 
 @app.command()
@@ -133,23 +160,36 @@ def inbox() -> None:
         return
 
     table = Table(title="Inbox")
+    table.add_column("#", style="dim", no_wrap=True)
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Kind")
     table.add_column("Content")
     table.add_column("Created")
 
-    for item in items:
+    for position, item in enumerate(items, start=1):
         preview = item.content.replace("\n", " ")
         if len(preview) > 60:
             preview = f"{preview[:57]}..."
-        table.add_row(item.id, item.kind.value, preview, item.created_at)
+        short_id = item.id[:8]
+        table.add_row(str(position), short_id, item.kind.value, preview, item.created_at)
 
     console.print(table)
 
 
 @app.command()
 def promote(
-    capture_id: str,
+    capture_id: Annotated[
+        str | None,
+        typer.Argument(help="Capture id or unique prefix. Omit to promote the latest inbox item."),
+    ] = None,
+    latest: Annotated[
+        bool,
+        typer.Option("--latest", help="Promote the most recent inbox item."),
+    ] = False,
+    index: Annotated[
+        int | None,
+        typer.Option("--index", help="Promote inbox item by list number (see syca inbox)."),
+    ] = None,
     title: Annotated[
         str | None,
         typer.Option("--title", help="Capability assertion title for the new node."),
@@ -167,6 +207,8 @@ def promote(
     try:
         result = promote_capture(
             capture_id,
+            latest=latest,
+            index=index,
             title=title,
             domain=domain,
             claimed_level=claimed_level,
@@ -252,7 +294,7 @@ def review(
         assert preview is not None
         console.print(f"[bold]Node:[/bold] {preview.node.title} ({preview.node.slug})")
         console.print(f"[bold]Prompt version:[/bold] {preview.payload.prompt_version}")
-        console.print("[bold]Provider:[/bold] mock (dry-run)")
+        console.print(f"[bold]Provider:[/bold] {preview.provider_name} (dry-run)")
         console.print(f"[bold]Mental model hash:[/bold] {preview.payload.mental_model_hash[:12]}...")
         console.print("[bold]Mental Model preview:[/bold]")
         console.print(preview.payload.mental_model)
@@ -263,6 +305,69 @@ def review(
     console.print(f"Node status: {result.node.review_status.value}")
     console.print(f"Summary: {result.review_run.summary}")
     console.print(f"Raw output: {result.raw_output_file}")
+
+
+@reviews_app.command("list")
+def reviews_list(node_id: str) -> None:
+    """List ReviewRuns for a node."""
+    try:
+        summaries = list_node_reviews(node_id)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except ReviewError as error:
+        _handle_review_error(error)
+
+    if not summaries:
+        console.print("[yellow]No review runs for this node.[/yellow]")
+        return
+
+    table = Table(title="Review Runs")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Created")
+    table.add_column("Prompt")
+    table.add_column("Decision")
+    table.add_column("Outdated")
+
+    for item in summaries:
+        table.add_row(
+            item.review.id,
+            item.review.created_at,
+            item.review.prompt_version,
+            item.review.user_decision.value,
+            "yes" if item.is_outdated else "no",
+        )
+
+    console.print(table)
+
+
+def _review_decide(review_id: str, decision: UserDecision, label: str) -> None:
+    try:
+        result = decide_review(review_id, decision)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except ReviewError as error:
+        _handle_review_error(error)
+
+    console.print(f"[green]{label}[/green] {result.review.id}")
+    console.print(f"Node status: {result.node.review_status.value}")
+
+
+@reviews_app.command("accept")
+def reviews_accept(review_id: str) -> None:
+    """Mark a ReviewRun as accepted by the user."""
+    _review_decide(review_id, UserDecision.ACCEPTED, "Accepted review")
+
+
+@reviews_app.command("ignore")
+def reviews_ignore(review_id: str) -> None:
+    """Mark a ReviewRun as ignored."""
+    _review_decide(review_id, UserDecision.IGNORED, "Ignored review")
+
+
+@reviews_app.command("revised")
+def reviews_revised(review_id: str) -> None:
+    """Mark a ReviewRun as needing revision."""
+    _review_decide(review_id, UserDecision.REVISED, "Marked review as needs revision")
 
 
 @app.command()
@@ -316,40 +421,182 @@ def level_set(
 @app.command()
 def status(
     stale: Annotated[bool, typer.Option("--stale", help="Show nodes needing recovery practice.")] = False,
+    domain: Annotated[str | None, typer.Option("--domain", help="Show freshness for a domain.")] = None,
 ) -> None:
     """Show node status summaries."""
-    if not stale:
-        console.print("[red]P1 status currently requires --stale.[/red]")
+    if stale and domain:
+        console.print("[red]Choose either --stale or --domain, not both.[/red]")
+        raise typer.Exit(code=1)
+    if not stale and not domain:
+        console.print("[red]Provide --stale or --domain.[/red]")
         raise typer.Exit(code=1)
 
-    try:
-        report = list_stale_nodes()
-    except DatabaseError as error:
-        _handle_database_error(error)
+    if stale:
+        try:
+            report = list_stale_nodes()
+        except DatabaseError as error:
+            _handle_database_error(error)
 
-    if not report.nodes:
-        console.print(
-            f"[green]No stale nodes[/green] (threshold: {report.stale_after_days} days)."
-        )
+        if not report.nodes:
+            console.print(
+                f"[green]No stale nodes[/green] (threshold: {report.stale_after_days} days)."
+            )
+            return
+
+        table = Table(title=f"Stale Nodes (>{report.stale_after_days} days)")
+        table.add_column("Title")
+        table.add_column("Slug")
+        table.add_column("Level")
+        table.add_column("Last Activity")
+        table.add_column("Days")
+
+        for item in report.nodes:
+            table.add_row(
+                item.node.title,
+                item.node.slug,
+                item.node.claimed_level.value,
+                item.last_activity_at,
+                str(item.days_since_activity),
+            )
+
+        console.print(table)
         return
 
-    table = Table(title=f"Stale Nodes (>{report.stale_after_days} days)")
+    assert domain is not None
+    try:
+        report = list_domain_status(domain)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except ValueError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1) from error
+
+    table = Table(title=f"Domain: {report.domain} (stale > {report.stale_after_days} days)")
     table.add_column("Title")
     table.add_column("Slug")
     table.add_column("Level")
-    table.add_column("Last Activity")
+    table.add_column("Freshness")
     table.add_column("Days")
 
-    for item in report.nodes:
+    for entry in report.entries:
+        freshness_label = "[red]stale[/red]" if entry.freshness.is_stale else "[green]fresh[/green]"
         table.add_row(
-            item.node.title,
-            item.node.slug,
-            item.node.claimed_level.value,
-            item.last_activity_at,
-            str(item.days_since_activity),
+            entry.node.title,
+            entry.node.slug,
+            entry.node.claimed_level.value,
+            freshness_label,
+            str(entry.freshness.days_since_activity),
         )
 
     console.print(table)
+
+
+@app.command()
+def recover(
+    node_id: str,
+    passed: Annotated[bool, typer.Option("--pass", help="Record a successful recovery drill.")] = False,
+    failed: Annotated[bool, typer.Option("--fail", help="Record a failed recovery drill.")] = False,
+    note: Annotated[str | None, typer.Option("--note", help="Optional note for the outcome.")] = None,
+) -> None:
+    """Run a recovery drill for a node (explain Mental Model or use Cheatsheet)."""
+    if passed and failed:
+        console.print("[red]Choose at most one of --pass or --fail.[/red]")
+        raise typer.Exit(code=1)
+
+    if passed or failed:
+        try:
+            result = record_recovery_outcome(node_id, passed=passed, note=note)
+        except DatabaseError as error:
+            _handle_database_error(error)
+        except RecoverError as error:
+            _handle_recover_error(error)
+
+        label = "passed" if result.passed else "failed"
+        console.print(
+            f"[green]Recovery {label}[/green] for {result.node.title} at {result.recorded_at}"
+        )
+        return
+
+    try:
+        drill = preview_recovery_drill(node_id)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except RecoverError as error:
+        _handle_recover_error(error)
+
+    stale_hint = (
+        f"[yellow]Stale[/yellow] ({drill.days_since_activity} days since activity)"
+        if drill.is_stale
+        else f"[green]Fresh[/green] ({drill.days_since_activity} days since activity)"
+    )
+    console.print(f"[bold]{drill.node.title}[/bold] ({drill.node.claimed_level.value}) — {stale_hint}")
+    console.print("\n[bold]Recovery drill[/bold]")
+    console.print("1. Explain the Mental Model in your own words.")
+    console.print("2. Complete a small task using the Cheatsheet (if present).")
+    console.print("\n[bold]Mental Model[/bold]")
+    console.print(drill.mental_model)
+    if drill.cheatsheet:
+        console.print("\n[bold]Cheatsheet[/bold]")
+        console.print(drill.cheatsheet)
+    else:
+        console.print("\n[yellow]No Cheatsheet yet.[/yellow]")
+    console.print("\nRecord outcome: [cyan]syca recover <node-id> --pass[/cyan] or [cyan]--fail[/cyan]")
+
+
+@app.command()
+def link(
+    source: str,
+    target: str,
+    edge_type: Annotated[
+        EdgeType,
+        typer.Option("--type", help="Relationship type between nodes."),
+    ] = EdgeType.PREREQUISITE,
+    rationale: Annotated[
+        str | None,
+        typer.Option("--rationale", help="Optional reason for this relationship."),
+    ] = None,
+) -> None:
+    """Link two ability nodes."""
+    try:
+        result = create_link(source, target, edge_type=edge_type, rationale=rationale)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except LinkError as error:
+        _handle_link_error(error)
+
+    console.print(
+        f"[green]Linked[/green] {result.source_title} -[{result.edge.edge_type.value}]-> "
+        f"{result.target_title}"
+    )
+    if result.edge.rationale:
+        console.print(f"Rationale: {result.edge.rationale}")
+
+
+@app.command()
+def graph(
+    domain: Annotated[str, typer.Option("--domain", help="Domain to visualize.")],
+) -> None:
+    """Show ability relationships within a domain."""
+    try:
+        domain_graph = build_domain_graph(domain)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except GraphError as error:
+        _handle_graph_error(error)
+
+    node_titles = {node.id: node.title for node in domain_graph.nodes}
+    console.print(f"[bold]Domain: {domain_graph.domain}[/bold] ({len(domain_graph.nodes)} nodes)")
+
+    if not domain_graph.edges:
+        console.print("[yellow]No links in this domain yet. Use syca link to connect nodes.[/yellow]")
+        for node in domain_graph.nodes:
+            console.print(f"- {node.title} ({node.slug})")
+        return
+
+    for edge in domain_graph.edges:
+        source_title = node_titles.get(edge.source_node_id, edge.source_node_id[:8])
+        target_title = node_titles.get(edge.target_node_id, edge.target_node_id[:8])
+        console.print(f"{source_title} -[{edge.edge_type.value}]-> {target_title}")
 
 
 @app.command()
@@ -372,4 +619,7 @@ def doctor() -> None:
 
 
 def main() -> None:
+    from sycamore.utils.env import load_project_env
+
+    load_project_env()
     app()

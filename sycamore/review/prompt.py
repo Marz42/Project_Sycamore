@@ -6,6 +6,37 @@ from dataclasses import dataclass
 
 PROMPT_VERSION = "p1-critique-v1"
 
+SYSTEM_CRITIQUE_PROMPT = """You are a critical capability reviewer for a personal learning tool.
+
+Your job is to challenge the user's Mental Model without rewriting it and without claiming facts are verified.
+
+Respond with JSON only, using this exact shape:
+{
+  "summary": "short critique summary",
+  "factIssues": ["..."],
+  "boundaryIssues": ["..."],
+  "questions": ["..."],
+  "practiceSuggestions": ["..."]
+}
+
+Rules:
+- Be concise and actionable.
+- Do not say the content is verified or certified.
+- Focus on mechanism clarity, boundaries, and practical checks.
+"""
+
+
+def build_critique_user_prompt(payload: ReviewPayload) -> str:
+    domain_line = f"Domain: {payload.domain}\n" if payload.domain else ""
+    return (
+        f"Node title: {payload.node_title}\n"
+        f"Slug: {payload.node_slug}\n"
+        f"{domain_line}"
+        f"Claimed level: {payload.claimed_level}\n"
+        f"Prompt version: {payload.prompt_version}\n\n"
+        f"Mental Model:\n{payload.mental_model}"
+    )
+
 
 @dataclass(frozen=True)
 class ReviewPayload:

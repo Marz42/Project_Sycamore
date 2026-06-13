@@ -11,14 +11,13 @@ from sycamore.models.ability_node import AbilityNode
 from sycamore.models.capture import CaptureItem
 from sycamore.models.enums import (
     CapabilityEventType,
-    CaptureStatus,
     ClaimedLevel,
     ReviewStatus,
 )
 from sycamore.storage.capture_repository import (
     CaptureRepositoryError,
-    get_capture_by_id,
     mark_capture_promoted,
+    resolve_inbox_capture,
 )
 from sycamore.storage.database import open_initialized_database
 from sycamore.storage.markdown_store import (
@@ -53,8 +52,10 @@ def _reserve_unique_slug(connection, base_slug: str) -> str:
 
 
 def promote_capture(
-    capture_id: str,
+    capture_id: str | None = None,
     *,
+    latest: bool = False,
+    index: int | None = None,
     title: str | None = None,
     domain: str | None = None,
     claimed_level: ClaimedLevel = ClaimedLevel.L0,
@@ -63,13 +64,15 @@ def promote_capture(
     root = home or get_syca_home()
     connection = open_initialized_database(get_database_path(root))
     try:
-        capture = get_capture_by_id(connection, capture_id)
-        if capture is None:
-            raise PromoteError(f"Capture not found: {capture_id}")
-        if capture.status is not CaptureStatus.INBOX:
-            raise PromoteError(
-                f"Capture {capture_id} has status '{capture.status.value}' and cannot be promoted."
+        try:
+            capture = resolve_inbox_capture(
+                connection,
+                capture_id=capture_id,
+                latest=latest,
+                index=index,
             )
+        except CaptureRepositoryError as error:
+            raise PromoteError(str(error)) from error
 
         node_id = str(uuid.uuid4())
         node_title = title or default_title_from_capture(capture)
@@ -110,7 +113,7 @@ def promote_capture(
                 )
                 updated_capture = mark_capture_promoted(
                     connection,
-                    capture_id=capture_id,
+                    capture_id=capture.id,
                     node_id=node_id,
                     timestamp=timestamp,
                 )
@@ -123,7 +126,7 @@ def promote_capture(
                     (
                         str(uuid.uuid4()),
                         node_id,
-                        capture_id,
+                        capture.id,
                         CapabilityEventType.CAPTURE_PROMOTED.value,
                         json.dumps({"slug": slug, "title": node_title}, ensure_ascii=False),
                         timestamp,

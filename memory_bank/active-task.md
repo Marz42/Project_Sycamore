@@ -6,7 +6,7 @@
 
 # 当前焦点
 
-P0 最小可信闭环已完成端到端验收。当前进入 **P1 能力校准**（ReviewRun、mock Provider、practice / stale 等）。
+P1 能力校准与 DeepSeek Provider 已完成。当前进入 **P2 能力恢复与关系**（recover、link、graph、status --domain）。
 
 P0 主循环：
 
@@ -71,10 +71,10 @@ P0 主循环：
 
 ## P0.7 Promote 体验增强（待做，用户验收反馈）
 
-- [ ] 支持 `syca promote --latest`（升格最新 inbox 条目）。
-- [ ] 支持 `syca promote --index <n>`（对应 `syca inbox` 列表序号）。
-- [ ] 支持 `syca promote <short-id>`（UUID 前缀，唯一时匹配）。
-- [ ] 可选：无参数 `syca promote` 交互式选择 inbox 条目。
+- [x] 支持 `syca promote --latest`（升格最新 inbox 条目）。
+- [x] 支持 `syca promote --index <n>`（对应 `syca inbox` 列表序号）。
+- [x] 支持 `syca promote <short-id>`（UUID 前缀，唯一时匹配）。
+- [x] 无参数 `syca promote` 默认升格最新 inbox 条目。
 
 > 背景：P0 仅支持完整 UUID，端到端验收中从 inbox 复制 `capture-id` 摩擦偏高。保留 UUID 精确匹配，补充更短、更符合 CLI 节奏的升格入口。
 
@@ -92,11 +92,33 @@ P0 主循环：
 - [x] 实现 `syca status --stale`。
 - [x] 实现 `syca level set <node-id> <level>`。
 
+## P1.3 Review 完善
+
+- [x] 实现 `syca reviews list <node-id>`（含 outdated 标记）。
+- [x] 实现 `syca reviews accept|ignore|revised <review-id>`。
+- [x] 实现 Provider 工厂（mock 默认，可选 http）。
+- [x] 支持节点级 `llmAllowed: false` 隐私门控。
+
+## P1.4 DeepSeek Provider
+
+- [x] 新增根目录 `.env.example`（DeepSeek 默认：`deepseek-v4-pro` / `https://api.deepseek.com`）。
+- [x] CLI 启动时加载 `.env`（不覆盖已有环境变量）。
+- [x] 实现 `DeepSeekReviewProvider`（OpenAI 兼容 `/chat/completions`）。
+- [x] 默认 `config.toml` `[llm]` 指向 DeepSeek（`enabled = false` 时仍走 mock）。
+
+## P2.1 能力恢复与关系（进行中）
+
+- [x] 实现 `syca recover <node-id>`（展示 drill；`--pass` / `--fail` 记录事件）。
+- [x] 实现 `syca link SOURCE TARGET --type ...`（manual edge，`rationale` 可选）。
+- [x] 实现 `syca graph --domain <name>`（域内关系列表）。
+- [x] 实现 `syca status --domain <name>`（域内新鲜度视图）。
+
 ---
 
 # 当前限制
 
-- P1 首轮仍使用 mock Provider，不接真实 LLM API。
+- LLM 需在 `config.toml` 中显式 `enabled = true` 且配置 `DEEPSEEK_API_KEY` 后才会调用 DeepSeek。
+- Recover drill 为自评模式，暂不自动验证解释质量。
 - 暂不实现能力图、恢复演练、RAG、多端同步、Web 或插件系统。
 - 暂不引入 ORM 或常驻服务。
 - 修改数据模型或 CLI 契约前必须更新 `data-contracts.md` 和 `roadmap.md`。

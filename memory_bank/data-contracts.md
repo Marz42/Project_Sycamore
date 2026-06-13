@@ -412,9 +412,23 @@ syca inbox
 将 CaptureItem 升格为 AbilityNode。
 
 ```bash
-syca promote <capture-id>
+syca promote
+syca promote --latest
+syca promote --index 2
+syca promote a1b2c3d4
 syca promote <capture-id> --title "我能查看 Kubernetes Pod" --domain docker
 ```
+
+选择规则（互斥，只能用一种）：
+
+| 形式 | 说明 |
+|------|------|
+| `syca promote`（无参） | 升格最新 inbox 条目（与 `--latest` 相同）。 |
+| `syca promote --latest` | 升格最新 inbox 条目。 |
+| `syca promote --index <n>` | 按 `syca inbox` 列表序号（1-based）升格。 |
+| `syca promote <id-or-prefix>` | 完整 UUID 或唯一 UUID 前缀。 |
+
+`syca inbox` 显示 `#` 序号与 ID 前 8 位，便于 `--index` 与前缀匹配。
 
 行为：
 
@@ -423,17 +437,6 @@ syca promote <capture-id> --title "我能查看 Kubernetes Pod" --domain docker
 - 插入 ability_nodes 索引。
 - 更新 capture_items 状态为 `promoted`。
 - 记录 `capture_promoted` 事件。
-
-### 计划增强（P0.7，尚未实现）
-
-P0 端到端验收反馈：`capture-id` 必须为完整 UUID，从 `syca inbox` 复制不便。计划在保留 UUID 精确匹配的前提下，增加更短升格入口：
-
-| 形式 | 说明 |
-|------|------|
-| `syca promote --latest` | 升格最新 inbox 条目。 |
-| `syca promote --index <n>` | 按 `syca inbox` 列表序号（1-based）升格。 |
-| `syca promote <short-id>` | UUID 前缀；仅当唯一匹配时成功。 |
-| `syca promote`（无参） | 可选：交互式从 inbox 选择。 |
 
 ## syca query
 
@@ -516,6 +519,74 @@ P1 命令。创建 ReviewRun，不覆盖用户原文。
 syca review <node-id> --dry-run
 syca review <node-id>
 ```
+
+Provider 由 `config.toml` 的 `[llm]` 段控制。默认 provider 为 `deepseek`（`enabled = false` 时 CLI 仍使用 mock）。
+
+```toml
+[llm]
+enabled = true
+provider = "deepseek"
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+api_key_env = "DEEPSEEK_API_KEY"
+```
+
+API Key 通过根目录或 `SYCA_HOME` 下的 `.env` 提供（见 `.env.example`）。启用 `provider = "http"` 时需配置 `endpoint`。
+
+节点 Front Matter 可设置 `llmAllowed: false` 禁止发送评审。
+
+## syca reviews
+
+查看与处理 ReviewRun。
+
+```bash
+syca reviews list <node-id>
+syca reviews accept <review-id>
+syca reviews ignore <review-id>
+syca reviews revised <review-id>
+```
+
+`list` 输出 `Outdated=yes` 表示 ReviewRun 的 `mentalModelHash` 与当前 Mental Model 不一致。
+
+`accept` → 节点 `reviewStatus = accepted_by_user`；`revised` → `needs_revision`；`ignore` 保持 `challenged`。
+
+## syca recover
+
+P2 命令。展示 Recovery Drill（Mental Model + Cheatsheet），用户自评后记录结果。
+
+```bash
+syca recover <node-id>
+syca recover <node-id> --pass
+syca recover <node-id> --fail [--note "..."]
+```
+
+无 `--pass` / `--fail` 时仅展示 drill；带 flag 时记录 `recovery_passed` 或 `recovery_failed` 事件（计入新鲜度）。
+
+## syca link
+
+手动建立节点关系（`ability_edges` 表）。
+
+```bash
+syca link <source> <target> --type prerequisite [--rationale "..."]
+```
+
+`--type` 可选：`prerequisite`、`related`、`similar_pattern`、`contrasts_with`、`used_in_scenario`。默认 `explicit` confidence。
+
+## syca graph
+
+```bash
+syca graph --domain shell
+```
+
+列出指定 domain 内节点及其边（文本列表）。
+
+## syca status --domain
+
+```bash
+syca status --domain backend
+```
+
+列出 domain 内各节点新鲜度（fresh / stale）。
 
 ---
 

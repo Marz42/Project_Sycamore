@@ -51,3 +51,18 @@ class CapabilityEventType(StrEnum):
     RECOVERY_FAILED = "recovery_failed"
     MANUAL_LEVEL_CHANGED = "manual_level_changed"
     NODE_SYNCED = "node_synced"
+
+
+class EdgeType(StrEnum):
+    PREREQUISITE = "prerequisite"
+    RELATED = "related"
+    SIMILAR_PATTERN = "similar_pattern"
+    CONTRASTS_WITH = "contrasts_with"
+    USED_IN_SCENARIO = "used_in_scenario"
+
+
+class EdgeConfidence(StrEnum):
+    EXPLICIT = "explicit"
+    IMPLICIT = "implicit"
+    SUGGESTED = "suggested"
+    DERIVED = "derived"
