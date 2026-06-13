@@ -8,6 +8,24 @@
 
 ---
 
+## [0.11.1] - 2026-06-11
+
+### Added
+
+- `syca graph --domain` ASCII 树形展示（prerequisite 树、其他关系箭头列表、`[unlinked]` 分区）。
+- `memory_bank/manuals/real-world-validation-guide.md` 端到端手工验收指南。
+
+### Changed
+
+- `README.md` 改为中文，反映 v0.11.1 命令与文档索引。
+- 更新 `deploy.md`、`testing-guide.md`、`roadmap.md`、`active-task.md`。
+
+### Fixed
+
+- Rich 控制台不再吞掉 `[prerequisite]` 等 section 标记（`markup=False`）。
+
+---
+
 ## [0.11.0] - 2026-06-11
 
 ### Added

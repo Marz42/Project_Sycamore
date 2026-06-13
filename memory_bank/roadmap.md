@@ -140,7 +140,7 @@ syca doctor
 
 # 阶段 2：P1 能力校准
 
-**状态**: 进行中。
+**状态**: 已完成（v0.10.0，DeepSeek E2E 已验证）。
 
 ## 目标
 
@@ -186,6 +186,8 @@ LLM Review 必须满足：
 ---
 
 # 阶段 3：P2 能力恢复与关系
+
+**状态**: 核心已交付（v0.11.1），待真实使用验证收官。
 
 ## 目标
 
@@ -301,16 +303,22 @@ syca status --domain backend
 
 # 版本策略
 
-当前 `0.2.0` 仍属于产品定义阶段。
+当前 `0.11.1`。P0–P2 核心 CLI 已可用。
 
-建议版本路线：
+建议版本路线（历史）：
 
 - `0.3.0`：P0 CLI 骨架和 Capture/Inbox 可用。
 - `0.4.0`：Promote、Markdown 节点和 Cheatsheet 查询可用。
 - `0.5.0`：Sync/Doctor 和数据一致性闭环可用。
 - `0.6.0`：ReviewRun 和 mock/真实 Provider 可用。
 - `0.7.0`：CapabilityEvent、freshness 和 stale view 可用。
-- `0.8.0`：Recover Drill 和基础关系图可用。
+- `0.8.0`：Review 管理与 Provider 工厂。
+- `0.9.0`：Promote 短入口。
+- `0.10.0`：DeepSeek Provider。
+- `0.11.0`：Recover、link、graph、status --domain。
+- `0.11.1`：graph ASCII 树形展示。
+
+手工验收指南：`memory_bank/manuals/real-world-validation-guide.md`。
 
 `1.0.0` 的条件：
 

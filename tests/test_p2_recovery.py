@@ -152,3 +152,16 @@ def test_link_cli(syca_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert result.exit_code == 0
     assert "Linked" in result.stdout
+
+
+def test_graph_cli_renders_tree(syca_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(SYCA_HOME_ENV, str(syca_home))
+    source_id = _promote_node(syca_home, "cd", "切换目录", domain="shell")
+    target_id = _promote_node(syca_home, "pwd", "查看目录", domain="shell")
+    create_link(source_id, target_id, home=syca_home)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["graph", "--domain", "shell"])
+    assert result.exit_code == 0
+    assert "Domain: shell" in result.stdout
+    assert "[prerequisite]" in result.stdout

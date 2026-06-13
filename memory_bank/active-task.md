@@ -6,7 +6,7 @@
 
 # 当前焦点
 
-P1 能力校准与 DeepSeek Provider 已完成。当前进入 **P2 能力恢复与关系**（recover、link、graph、status --domain）。
+P1 能力校准与 DeepSeek Provider 已完成。P2 核心命令已交付，当前处于 **真实使用验证期**。
 
 P0 主循环：
 
@@ -106,12 +106,17 @@ P0 主循环：
 - [x] 实现 `DeepSeekReviewProvider`（OpenAI 兼容 `/chat/completions`）。
 - [x] 默认 `config.toml` `[llm]` 指向 DeepSeek（`enabled = false` 时仍走 mock）。
 
-## P2.1 能力恢复与关系（进行中）
+## P2.1 能力恢复与关系
 
 - [x] 实现 `syca recover <node-id>`（展示 drill；`--pass` / `--fail` 记录事件）。
 - [x] 实现 `syca link SOURCE TARGET --type ...`（manual edge，`rationale` 可选）。
-- [x] 实现 `syca graph --domain <name>`（域内关系列表）。
+- [x] 实现 `syca graph --domain <name>`（域内 ASCII 能力图）。
 - [x] 实现 `syca status --domain <name>`（域内新鲜度视图）。
+
+## 文档与验证
+
+- [x] 撰写 `memory_bank/manuals/real-world-validation-guide.md`。
+- [x] 更新 `README.md`（中文）与 manuals。
 
 ---
 
@@ -119,6 +124,6 @@ P0 主循环：
 
 - LLM 需在 `config.toml` 中显式 `enabled = true` 且配置 `DEEPSEEK_API_KEY` 后才会调用 DeepSeek。
 - Recover drill 为自评模式，暂不自动验证解释质量。
-- 暂不实现能力图、恢复演练、RAG、多端同步、Web 或插件系统。
+- 暂不实现 RAG、多端同步、Web、备份命令或插件系统。
 - 暂不引入 ORM 或常驻服务。
 - 修改数据模型或 CLI 契约前必须更新 `data-contracts.md` 和 `roadmap.md`。

@@ -367,3 +367,26 @@
 
 - 真实 DeepSeek review 端到端验证；P2 文本图增强或 P3 候选功能。
 
+### 2026-06-11 - DeepSeek E2E + graph 文本树
+
+**完成事项**:
+
+- 真实 API review 验证通过（`node-617eb5dd`，ReviewRun `7f4f267e...`）。
+- `syca graph --domain` 改为 ASCII 树形/分区展示；修复 Rich 吞掉 `[section]` 标记。
+- 64 项测试通过；版本号升至 `0.11.1`。
+
+**下一步建议**:
+
+- 为用户节点设置 `domain` 后可用 graph 串联能力图；或进入 P3 候选。
+
+### 2026-06-11 - 文档与 README 更新
+
+**完成事项**:
+
+- 中文 `README.md`；更新 `deploy.md`、`testing-guide.md`、`roadmap.md`、`active-task.md`。
+- 合入 graph 文本树（0.11.1）与真实使用验证指南。
+
+**下一步建议**:
+
+- 按验证指南完成个人数据验收；评估 P3 启动条件。
+

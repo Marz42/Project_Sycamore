@@ -1,68 +1,95 @@
 # 测试指南
 
-> COLD 知识。仅在编写或运行测试时读取。
+> COLD 知识。编写或运行自动化测试时读取。手工端到端验收见 [`real-world-validation-guide.md`](real-world-validation-guide.md)。
 
 ---
 
 # 当前测试策略
 
-Sycamore 当前进入 P0 最小可信闭环构建阶段。测试优先覆盖“CaptureItem + Inbox + Promote + Markdown + SQLite + CLI”这条核心链路。
+**v0.11.1** — 64 passed, 1 skipped。覆盖 P0–P2 核心路径：
+
+- Capture / Inbox / Promote（含 `--latest`、`--index`、UUID 前缀）
+- Markdown 解析、sync、doctor、query
+- ReviewRun、mock/DeepSeek Provider 工厂
+- practice、freshness、level set
+- recover、link、graph 文本渲染
 
 ---
 
-# 推荐测试框架
+# 工具链
 
 | 层面 | 工具 | 说明 |
 |------|------|------|
-| 单元测试 | pytest | 覆盖领域模型、Markdown 解析、SQLite 存储。 |
-| CLI 测试 | pytest + Typer/Click testing utilities | 根据最终 CLI 框架选择对应测试工具。 |
-| LLM 评审 | mock Provider | 不在单元测试中调用真实外部模型。 |
-| 临时目录 | pytest `tmp_path` | 隔离 `SYCA_HOME`，避免污染真实用户数据。 |
+| 单元/集成 | pytest | `tests/` 目录 |
+| Lint | ruff | `uv run ruff check .` |
+| CLI | Typer `CliRunner` | 见 `tests/test_*_cli*`、`test_p2_recovery.py` |
+| LLM | mock Provider | 单元测试不调用真实 API；DeepSeek 用 `urllib` mock |
+| 隔离 | `tmp_path` + `SYCA_HOME` | 禁止读写真实 `~/.sycamore/` |
 
 ---
 
 # 必测场景
 
-- AbilityNode 创建时生成稳定 ID、slug 和 Markdown 模板。
-- slug 冲突时返回清晰错误，不覆盖已有文件。
-- CaptureItem 能保存 note、cheat、link 并出现在 Inbox。
-- Promote 能把 CaptureItem 升格为 AbilityNode。
-- Markdown Front Matter 可读写。
-- `Cheatsheet` 区块可被准确提取。
-- SQLite 元数据和 Markdown 文件路径保持一致。
-- `syca doctor` 能发现缺失文件、孤儿记录和无效关系。
-- P1 LLM review 使用 mock Provider 返回结构化 `ReviewRun`。
-- CLI 在 `--json` 模式下遵循统一输出格式。
+## P0
+
+- CaptureItem 保存 note/cheat/link 并出现在 Inbox
+- Promote 生成 Markdown 节点与 SQLite 索引
+- slug 冲突返回清晰错误
+- Cheatsheet 区块提取与 query 匹配
+- sync 刷新 hash；doctor 发现不一致
+
+## P1
+
+- practice 追加 Practice Log 与 `practice_logged` 事件
+- stale 推导与 `status --stale`
+- review dry-run / mock 写入 ReviewRun
+- reviews list 的 outdated 检测
+- `llmAllowed: false` 门控
+
+## P2
+
+- recover drill 展示与 `--pass`/`--fail` 事件
+- link 建边与重复边报错
+- graph ASCII 树渲染（含 `[prerequisite]` section）
+- status `--domain` 新鲜度表
+
+## Provider
+
+- `tests/test_deepseek_provider.py`：mock `urlopen` 解析 JSON
+- `tests/test_graph_render.py`：文本图格式
 
 ---
 
-# 测试数据约定
-
-- 测试不得读写真实 `~/.sycamore/`。
-- 测试必须设置临时 `SYCA_HOME`。
-- 测试样例节点应使用明确的能力断言标题。
-- 不在测试文件中保存真实 LLM API Key。
-
----
-
-# 推荐命令
-
-项目初始化后建议使用：
+# 运行命令
 
 ```bash
-pytest
-pytest tests/unit
-pytest tests/integration
-```
-
-如果后续引入覆盖率工具，再补充：
-
-```bash
-pytest --cov=sycamore
+uv run pytest
+uv run pytest tests/test_promote.py -v
+uv run ruff check .
 ```
 
 ---
 
-# 当前状态
+# 测试约定
 
-代码骨架尚未创建，因此本指南记录的是目标测试策略。初始化 `pyproject.toml` 后需要同步补充实际命令。
+- 所有涉及数据目录的测试必须设置 `SYCA_HOME` fixture。  
+- 不在测试文件或 CI 中保存真实 `DEEPSEEK_API_KEY`。  
+- 样例节点标题使用明确能力断言（中文或英文均可）。  
+- 真实 LLM 端到端验证属于手工验收，不纳入 pytest 默认套件。  
+
+---
+
+# 测试文件索引
+
+| 文件 | 覆盖 |
+|------|------|
+| `test_init.py` / `test_init_cli.py` | init |
+| `test_capture.py` / `test_cli.py` | capture、inbox |
+| `test_promote.py` | promote |
+| `test_markdown_parser.py` | Markdown 区块 |
+| `test_sync_query_doctor.py` | sync、query、doctor |
+| `test_review.py` / `test_review_p1.py` | review、reviews |
+| `test_p1_freshness.py` | practice、level、stale |
+| `test_deepseek_provider.py` | DeepSeek 工厂与解析 |
+| `test_p2_recovery.py` | recover、link、graph CLI |
+| `test_graph_render.py` | graph 文本渲染 |

@@ -8,6 +8,7 @@ from sycamore import __version__
 from sycamore.core.capture_service import create_capture, list_inbox
 from sycamore.core.doctor_service import run_doctor
 from sycamore.core.graph_service import GraphError, build_domain_graph
+from sycamore.core.graph_render import format_domain_graph_text
 from sycamore.core.init_service import initialize_sycamore
 from sycamore.core.level_service import LevelError, set_claimed_level
 from sycamore.core.link_service import LinkError, create_link
@@ -584,19 +585,8 @@ def graph(
     except GraphError as error:
         _handle_graph_error(error)
 
-    node_titles = {node.id: node.title for node in domain_graph.nodes}
-    console.print(f"[bold]Domain: {domain_graph.domain}[/bold] ({len(domain_graph.nodes)} nodes)")
-
-    if not domain_graph.edges:
-        console.print("[yellow]No links in this domain yet. Use syca link to connect nodes.[/yellow]")
-        for node in domain_graph.nodes:
-            console.print(f"- {node.title} ({node.slug})")
-        return
-
-    for edge in domain_graph.edges:
-        source_title = node_titles.get(edge.source_node_id, edge.source_node_id[:8])
-        target_title = node_titles.get(edge.target_node_id, edge.target_node_id[:8])
-        console.print(f"{source_title} -[{edge.edge_type.value}]-> {target_title}")
+    for line in format_domain_graph_text(domain_graph):
+        console.print(line, markup=False)
 
 
 @app.command()

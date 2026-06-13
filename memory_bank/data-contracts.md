@@ -578,7 +578,7 @@ syca link <source> <target> --type prerequisite [--rationale "..."]
 syca graph --domain shell
 ```
 
-列出指定 domain 内节点及其边（文本列表）。
+输出域内 ASCII 文本图：`prerequisite` 以树形展示（`├──` / `└──`），其他关系类型以箭头列表展示，无连边的节点归入 `[unlinked]`。
 
 ## syca status --domain
 
