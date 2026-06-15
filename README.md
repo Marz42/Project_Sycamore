@@ -1,21 +1,24 @@
 # Sycamore
 
-本地优先的能力校准与恢复 CLI。面向跨领域学习者：在真实工作中低摩擦捕获碎片，再逐步升格为可查询、可评审、可恢复的结构化能力节点。
+本地优先的能力训练系统。面向跨领域学习者：低摩擦捕获碎片，逐步升格为可理解、可恢复、可迁移的结构化能力节点网络。
 
-**当前版本**：`0.11.1`  
-**当前阶段**：P0 / P1 已交付，P2 核心命令已就绪，处于真实使用验证期。
+**当前版本**：`0.17.0`  
+**当前阶段**：P0–P4 全部交付，Phase 1A-0 ~ 4 完成。处于真实使用验证期。
 
 ## 产品闭环
 
 ```text
-捕获 → 澄清 → 编码 → 挑战 → 实践 → 恢复
+捕获 → 澄清 → 编码 → 挑战 → 实践 → 恢复 → 迁移
 ```
 
 对应日常命令流：
 
 ```text
-init → capture → inbox → promote → query --cheat → sync → doctor
-     → practice / review / recover → link → graph / status
+init → capture → inbox → clarify → promote → edit → check
+     → sync → doctor
+     → practice / review / recover → schedule
+     → link → graph / path / status
+     → transfer / challenge
 ```
 
 ## 快速开始
@@ -32,76 +35,107 @@ git clone <repo-url> Project_Sycamore
 cd Project_Sycamore
 uv sync
 
-# 查看版本
-uv run syca version
-
-# 初始化本地数据目录（默认 ~/.sycamore/）
-uv run syca init
-```
-
-可选：安装为可编辑包，直接使用 `syca` 命令：
-
-```bash
-uv pip install -e .
-syca --help
+uv run syca version   # 查看版本
+uv run syca init      # 初始化 ~/.sycamore/
 ```
 
 ### 最小使用示例
 
 ```bash
-# 1. 捕获一条命令片段
+# 捕获
 uv run syca capture --cheat "ls -la"
 
-# 2. 升格为正式能力节点
+# 升格
 uv run syca promote --title "我能列出目录详情" --domain shell
 
-# 3. 编辑 ~/.sycamore/nodes/<slug>.md，填写 Mental Model 的 ### Core Idea
+# 编码
+uv run syca edit <node-id>              # 逐块填写
 
-# 4. 同步并检查一致性
-uv run syca sync
-uv run syca doctor
+# 复习
+uv run syca recover <node-id>           # recall-first 回忆
+uv run syca recover <node-id> --hard    # 评分
 
-# 5. 查询 Cheatsheet
-uv run syca query "ls" --cheat
-```
+# 迁移
+uv run syca challenge --domain shell    # 随机挑战
 
-### 独立数据目录（开发或验证用）
-
-```bash
-# PowerShell
-$env:SYCA_HOME = "$env:TEMP\sycamore-dev"
-uv run syca init
-
-# Bash
-export SYCA_HOME=/tmp/sycamore-dev
-uv run syca init
+# 图谱
+uv run syca link <a> <b> --type prerequisite
+uv run syca graph --domain shell
 ```
 
 ## 命令一览
 
-| 阶段 | 命令 | 说明 |
-|------|------|------|
-| **P0** | `syca init` | 初始化配置与 SQLite |
-| | `syca capture --note\|--cheat\|--link` | 低摩擦捕获到 Inbox |
-| | `syca inbox` | 查看待处理捕获项 |
-| | `syca promote [--index\|--latest\|<id>]` | 升格为 Markdown 节点 |
-| | `syca query <term> --cheat` | 搜索 Cheatsheet |
-| | `syca sync` / `syca doctor` | 同步索引与一致性检查 |
-| **P1** | `syca practice <node>` | 追加 Practice Log |
-| | `syca level set <node> L1` | 更新声明等级 |
-| | `syca status --stale` | 列出久未活动节点 |
-| | `syca review <node> [--dry-run]` | LLM 批判性评审 |
-| | `syca reviews list\|accept\|ignore\|revised` | 管理评审记录 |
-| **P2** | `syca recover <node> [--pass\|--fail]` | 恢复演练 |
-| | `syca link <src> <tgt> --type prerequisite` | 建立能力关系 |
-| | `syca graph --domain shell` | 域内 ASCII 能力图 |
-| | `syca status --domain shell` | 域内新鲜度视图 |
+### 输入层
 
-节点标识符支持：完整 UUID、唯一 UUID 前缀、或 slug。
+| 命令 | 说明 |
+|:--|:--|
+| `syca init` | 初始化数据目录与 SQLite |
+| `syca capture --note\|--cheat\|--link` | 低摩擦捕获 |
+| `syca inbox` | 查看待处理捕获项 |
+| `syca clarify [<id>]` | 分析并建议 promote 参数 |
+| `syca promote [--latest\|--index\|<id>] --type <type>` | 升格为节点 |
 
-## LLM 评审配置（可选）
+### 学习层
 
-默认使用 **DeepSeek**（`deepseek-v4-pro`）。未启用时 `review` 走 mock，不影响其他命令。
+| 命令 | 说明 |
+|:--|:--|
+| `syca edit <node> [--block <name>] [--suggest]` | 逐块编辑 |
+| `syca check <node>` | 检查完成度 |
+| `syca query <term> --cheat` | 搜索 Cheatsheet |
+
+### 复习层
+
+| 命令 | 说明 |
+|:--|:--|
+| `syca recover <node> [--mode] [--pass\|--hard\|--easy\|--fail]` | 回忆训练 |
+| `syca review <node> [--dry-run]` | LLM 评审 |
+| `syca reviews list\|accept\|ignore\|revised` | 管理评审 |
+| `syca practice <node>` | 追加实践记录 |
+| `syca level set <node> L0-L3` | 更新等级 |
+| `syca schedule [--domain]` | FSRS 到期复习 |
+
+### 迁移层
+
+| 命令 | 说明 |
+|:--|:--|
+| `syca transfer <node> --level A\|B\|C\|D` | 迁移场景 |
+| `syca challenge [--domain]` | 随机挑战 |
+
+### 图谱层
+
+| 命令 | 说明 |
+|:--|:--|
+| `syca link <src> <tgt> --type prerequisite\|contrast\|composition\|diagnostic` | 建关系 |
+| `syca graph --domain <name>` | ASCII 能力图 |
+| `syca path --domain <name>` | 学习路径链 |
+
+### 诊断
+
+| 命令 | 说明 |
+|:--|:--|
+| `syca sync` | 同步索引 |
+| `syca doctor` | 一致性检查 |
+| `syca status --stale\|--domain\|--weak\|--completion\|--cluster-risk` | 状态视图 |
+
+## 节点类型
+
+| 类型 | 适用领域 | 核心区块 |
+|:--|:--|:--|
+| `capability` | IT、软件操作、外语 | Steps / Pitfalls / Cheatsheet |
+| `concept` | 哲学、历史、经济学 | Core Thesis / Historical Context / Critique |
+| `theorem` | 数学、物理、算法 | Formula / Intuition / Boundary Conditions |
+| `process` | 化工、机械、生物 | Mechanism / Parameters / Disturbance Response |
+
+## 完成度状态
+
+| 状态 | 条件 |
+|:--|:--|
+| `draft` | 模板占位未替换 |
+| `modeled` | Core Idea + Boundaries + Minimal Task 已填写 |
+| `contrasted` | 含 Contrast 区块 |
+| `reviewable` | modeled + contrasted + Cheatsheet 非空 |
+
+## LLM 配置（可选）
 
 ```bash
 cp .env.example .env
@@ -119,52 +153,51 @@ model = "deepseek-v4-pro"
 api_key_env = "DEEPSEEK_API_KEY"
 ```
 
+未启用时所有命令仍可正常使用（mock 回退）。
+
 ## 数据目录
 
 ```text
 ~/.sycamore/
 ├── config.toml      # 用户配置
-├── sycamore.db      # SQLite 索引、事件、关系
+├── sycamore.db      # SQLite 索引、事件、关系、FSRS 状态
 ├── nodes/           # AbilityNode Markdown（权威正文）
 └── reviews/         # ReviewRun 原始 JSON
 ```
 
-Markdown 正文（Mental Model、Cheatsheet、Practice Log）以文件为准；SQLite 存索引与派生状态。
+Markdown 正文以文件为准；SQLite 存索引与派生状态。
 
 ## 技术栈
 
 | 层面 | 选型 |
-|------|------|
+|:--|:--|
 | 语言 | Python 3.12+ |
 | 包管理 | uv |
 | CLI | Typer + Rich |
 | 存储 | SQLite + Markdown Front Matter |
+| 调度 | FSRS-5（Anki 兼容） |
 | 测试 | pytest + ruff |
-
-刻意不引入：Web 服务、ORM、向量库、后台 daemon、插件系统。
 
 ## 文档
 
 | 文档 | 说明 |
-|------|------|
-| [`memory_bank/manuals/real-world-validation-guide.md`](memory_bank/manuals/real-world-validation-guide.md) | **端到端真实使用验证指南**（推荐首次阅读） |
+|:--|:--|
+| [`memory_bank/manuals/usage-guide.md`](memory_bank/manuals/usage-guide.md) | **v0.17.0 完整使用指南**（推荐） |
+| [`memory_bank/manuals/real-world-validation-guide.md`](memory_bank/manuals/real-world-validation-guide.md) | 端到端验证指南 |
 | [`memory_bank/roadmap.md`](memory_bank/roadmap.md) | 阶段路线与版本策略 |
 | [`memory_bank/data-contracts.md`](memory_bank/data-contracts.md) | 数据模型与 CLI 契约 |
-| [`memory_bank/manuals/deploy.md`](memory_bank/manuals/deploy.md) | 安装与数据备份 |
-| [`memory_bank/manuals/testing-guide.md`](memory_bank/manuals/testing-guide.md) | 自动化测试说明 |
-| [`memory_bank/changelog.md`](memory_bank/changelog.md) | 版本变更记录 |
-
-项目上下文由 `memory_bank/` 维护，Agent 协同时按温度等级加载（见 `.cursor/rules/memory-bank-protocol.mdc`）。
+| [`memory_bank/architecture.md`](memory_bank/architecture.md) | 架构总览 |
+| [`memory_bank/conventions.md`](memory_bank/conventions.md) | 代码与命名规范 |
 
 ## 开发与测试
 
 ```bash
-uv run pytest
-uv run ruff check .
+uv run pytest          # 195 测试，1 跳过
+uv run ruff check .    # 零告警
 ```
 
 测试使用临时 `SYCA_HOME` 隔离，不读写真实 `~/.sycamore/`。LLM 相关测试使用 mock Provider。
 
 ## 许可证
 
-本仓库沿用 MPL 2.0。公开发布前如需调整许可证请另行评估。
+MPL 2.0

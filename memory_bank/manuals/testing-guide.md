@@ -6,7 +6,18 @@
 
 # 当前测试策略
 
-**v0.11.1** — 64 passed, 1 skipped。覆盖 P0–P2 核心路径：
+**v0.17.0** — 195 passed, 1 skipped。覆盖全部交付阶段：
+
+- P0–P2: init / capture / inbox / promote / query / sync / doctor / practice / level / status / review / recover / link / graph
+- Phase 1A-0: NodeType 枚举 / 四种模板 / promote --type / schema 迁移
+- Phase 1A: recall-first recover / fail-type / ratings / status --weak
+- Phase 1B: FSRS-5 scheduler / syca schedule
+- Phase 2A/2B: clarify / edit / check / completion / status --completion
+- Phase 2C: LLM suggest_fill / edit --suggest
+- Phase 3: transfer / challenge / scenario generation
+- Phase 4: path view / cluster risk / contrast+composition+diagnostic edges
+- Utils: hash / slug / time / config_store 单元测试
+- E2E: 两个端到端场景（Linux 学习 + 多域关系）
 
 - Capture / Inbox / Promote（含 `--latest`、`--index`、UUID 前缀）
 - Markdown 解析、sync、doctor、query
