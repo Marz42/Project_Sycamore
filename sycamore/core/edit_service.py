@@ -12,8 +12,10 @@ from sycamore.storage.database import open_initialized_database
 from sycamore.storage.markdown_parser import (
     replace_section,
 )
+from sycamore.storage.config_store import load_config
 from sycamore.storage.markdown_writer import write_node_markdown
-from sycamore.utils.paths import get_database_path, get_syca_home
+from sycamore.utils.paths import get_config_path, get_database_path, get_syca_home
+from sycamore.review.factory import get_review_provider
 
 
 class EditError(Exception):
@@ -150,3 +152,40 @@ def _insert_section_before(
         return body.rstrip() + f"\n\n## {section_name}\n\n{content}\n"
     new_section = f"## {section_name}\n\n{content}\n\n"
     return body[:idx] + new_section + body[idx:]
+
+
+def suggest_block_fill(
+    node_title: str,
+    node_type: str,
+    domain: str | None,
+    block_name: str,
+    prompt_text: str,
+    *,
+    home: Path | None = None,
+) -> str | None:
+    """Ask the configured LLM provider for a fill suggestion for a block.
+    
+    Returns None if no provider is available or LLM is disabled.
+    """
+    root = home or get_syca_home()
+    try:
+        config = load_config(get_config_path(root))
+        provider = get_review_provider(config)
+    except Exception:
+        return None
+
+    system_prompt = (
+        f"Node title: {node_title}\n"
+        f"Node type: {node_type}\n"
+        f"{'Domain: ' + domain if domain else ''}"
+        f"Block to fill: {block_name}\n"
+        f"Guidance: {prompt_text}\n\n"
+        f"Provide a short, actionable suggestion that the user can edit."
+    )
+    try:
+        result = provider.suggest_fill(system_prompt)
+        if result.startswith("[Mock suggestion]") or result.startswith("[LLM unavailable"):
+            return result
+        return result
+    except Exception:
+        return None

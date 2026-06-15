@@ -108,3 +108,45 @@ class DeepSeekReviewProvider:
             practice_suggestions=[str(item) for item in parsed.get("practiceSuggestions", [])],
             model=str(raw.get("model", self._model)),
         )
+
+    def suggest_fill(self, prompt: str) -> str:
+        """Generate a short fill suggestion for an edit block."""
+        request_body = json.dumps(
+            {
+                "model": self._model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are helping a learner fill in a knowledge node. "
+                            "Respond with a single, concise, actionable suggestion "
+                            "in the user's language. Do NOT write a full paragraph — "
+                            "just 1-3 sentences that the user can edit and expand."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.4,
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            self._chat_completions_url(),
+            data=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key()}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self._timeout_seconds) as response:
+                raw = json.loads(response.read().decode("utf-8"))
+        except Exception as error:
+            # Silently fall back — network issues shouldn't block editing
+            return f"[LLM unavailable: {error}]"
+
+        try:
+            return str(raw["choices"][0]["message"]["content"]).strip()
+        except Exception:
+            return "[LLM returned unexpected response]"

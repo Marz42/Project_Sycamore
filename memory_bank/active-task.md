@@ -6,7 +6,8 @@
 
 # 当前焦点
 
-P0–P2 已交付，Phase 1A-0 / 1A / 1B 已完成。当前阶段：**Phase 2 完成**（clarify + edit + check + completion）。下一步：**Phase 3 迁移层**或**Phase 4 图谱增强**。
+P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B / 2C 已完成。当前版本 **v0.15.0**。
+下一步：**Phase 3 迁移层**或**Phase 4 图谱增强**。
 
 当前命令流：
 

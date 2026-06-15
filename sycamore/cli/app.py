@@ -907,11 +907,16 @@ def edit(
         str | None,
         typer.Option("--block", help="Edit a specific block only."),
     ] = None,
+    suggest: Annotated[
+        bool,
+        typer.Option("--suggest", help="Use LLM to suggest content for each block."),
+    ] = False,
 ) -> None:
     """Interactively edit an AbilityNode's blocks with guided prompts."""
     from rich.prompt import Prompt
 
     try:
+        from sycamore.core.edit_service import suggest_block_fill
         from sycamore.core.node_context import load_node_context
         from sycamore.storage.database import open_initialized_database
         from sycamore.utils.paths import get_database_path, get_syca_home
@@ -944,6 +949,18 @@ def edit(
         if current and current.strip():
             preview = current.strip()[:200]
             console.print(f"[dim]Current:[/dim] {preview}")
+
+        if suggest:
+            suggestion = suggest_block_fill(
+                node_title=context.node.title,
+                node_type=node_type,
+                domain=context.node.domain,
+                block_name=block_name,
+                prompt_text=prompt_text,
+                home=root,
+            )
+            if suggestion:
+                console.print(f"[dim cyan]Suggestion:[/dim cyan] {suggestion[:300]}")
 
         try:
             new_text = Prompt.ask("→", default="")

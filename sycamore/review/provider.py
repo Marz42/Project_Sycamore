@@ -26,6 +26,7 @@ class ReviewProvider(Protocol):
     name: str
 
     def critique(self, payload: ReviewPayload) -> ReviewCritique: ...
+    def suggest_fill(self, prompt: str) -> str: ...
 
 
 class MockReviewProvider:
@@ -52,6 +53,10 @@ class MockReviewProvider:
             ],
             model="mock-critique-v1",
         )
+
+    def suggest_fill(self, prompt: str) -> str:
+        # Return a simple, generic suggestion — user must edit.
+        return "[Mock suggestion] Consider writing a concise answer that addresses the prompt directly."
 
 
 class HttpReviewProvider:

@@ -278,3 +278,35 @@ def test_edit_cli_block_prompt(syca_home: Path, monkeypatch: pytest.MonkeyPatch)
     result = runner.invoke(app, ["edit", node_id, "--block", "nonexistent"])
     assert result.exit_code == 1
     assert "Unknown block" in result.stdout
+
+
+def test_edit_cli_suggest_flag(syca_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--suggest flag should load without error (mock provider will return suggestion)."""
+    monkeypatch.setenv(SYCA_HOME_ENV, str(syca_home))
+    node_id = _promote(syca_home, "cmd", "suggest test")
+
+    runner = CliRunner()
+    # Non-interactive test: use --block with --suggest, input empty to skip
+    result = runner.invoke(
+        app,
+        ["edit", node_id, "--block", "Core Idea", "--suggest"],
+        input="\n",  # empty → skip
+    )
+    assert result.exit_code == 0
+    # Mock suggestion text should appear
+    assert "Suggestion:" in result.stdout
+
+
+def test_mock_provider_suggest_fill() -> None:
+    from sycamore.review.provider import MockReviewProvider
+    provider = MockReviewProvider()
+    result = provider.suggest_fill("test prompt")
+    assert "Mock suggestion" in result
+
+
+def test_mock_provider_has_suggest_fill_attr() -> None:
+    """Verify MockReviewProvider satisfies the suggest_fill protocol."""
+    from sycamore.review.provider import MockReviewProvider
+    provider = MockReviewProvider()
+    assert hasattr(provider, "suggest_fill")
+    assert callable(provider.suggest_fill)

@@ -92,7 +92,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 
 # Phase 0：历史交付（已完成）
 
-> 当前状态：**v0.14.0** — P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B 完成
+> 当前状态：**v0.15.0** — P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B / 2C 完成
 
 ## 已完成的阶段
 
@@ -108,6 +108,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 | Phase 1B | v0.13.0 | FSRS-5 调度器 / syca schedule / node_scheduler_state |
 | Phase 2A | v0.14.0 | clarify / completion 引擎 / placeholder 检测 |
 | Phase 2B | v0.14.0 | edit / check / status --completion |
+| Phase 2C | v0.15.0 | LLM suggest_fill / edit --suggest |
 
 ## 当前已有功能清单
 
@@ -497,7 +498,7 @@ syca check <node-id>                  # 检查完成度
 
 > **目标**：在 edit 流程中引入 LLM，为每个区块生成草稿建议，降低编码摩擦。
 >
-> 估算周期：**1 周** | 🔴 待启动
+> 估算周期：**1 周** | ✅ 已完成（v0.15.0）
 
 ## 动机
 
