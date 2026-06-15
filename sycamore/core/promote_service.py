@@ -58,6 +58,7 @@ def promote_capture(
     index: int | None = None,
     title: str | None = None,
     domain: str | None = None,
+    node_type: str = "capability",
     claimed_level: ClaimedLevel = ClaimedLevel.L0,
     home: Path | None = None,
 ) -> PromoteResult:
@@ -90,6 +91,7 @@ def promote_capture(
             slug=slug,
             title=node_title,
             domain=domain,
+            node_type=node_type,
             claimed_level=claimed_level,
             timestamp=timestamp,
         )
@@ -103,6 +105,7 @@ def promote_capture(
                     slug=slug,
                     title=node_title,
                     domain=domain,
+                    node_type=node_type,
                     claimed_level=claimed_level,
                     review_status=ReviewStatus.NOT_REVIEWED,
                     node_path=relative_node_path,

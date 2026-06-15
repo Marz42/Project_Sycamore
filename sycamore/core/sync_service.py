@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sycamore.models.ability_node import AbilityNode
-from sycamore.models.enums import CapabilityEventType, ReviewStatus
+from sycamore.models.enums import CapabilityEventType, NodeType, ReviewStatus
 from sycamore.storage.database import open_initialized_database
 from sycamore.storage.markdown_parser import parse_node_markdown
 from sycamore.storage.node_repository import upsert_node_index
@@ -56,12 +56,16 @@ def sync_nodes(*, home: Path | None = None) -> SyncResult:
 
                 node_path = _relative_node_path(root, markdown_path)
                 timestamp = utc_now_iso()
+                safe_node_type = parsed.node_type
+                if safe_node_type not in {t.value for t in NodeType}:
+                    safe_node_type = "capability"
                 node, created = upsert_node_index(
                     connection,
                     node_id=parsed.node_id,
                     slug=parsed.slug,
                     title=parsed.title,
                     domain=parsed.domain,
+                    node_type=safe_node_type,
                     claimed_level=parsed.claimed_level,
                     review_status=ReviewStatus.NOT_REVIEWED,
                     node_path=node_path,

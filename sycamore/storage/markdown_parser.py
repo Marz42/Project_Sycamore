@@ -26,6 +26,7 @@ class ParsedNodeMarkdown:
     slug: str
     title: str
     domain: str | None
+    node_type: str
     claimed_level: ClaimedLevel
     created_at: str
     updated_at: str
@@ -88,6 +89,7 @@ def parse_node_markdown(path: Path) -> ParsedNodeMarkdown:
             slug=str(metadata.get("slug", "")),
             title=str(metadata.get("title", "")),
             domain=str(metadata["domain"]) if metadata.get("domain") else None,
+            node_type=str(metadata.get("type", "capability")),
             claimed_level=ClaimedLevel.L0,
             created_at=str(metadata.get("createdAt", "")),
             updated_at=str(metadata.get("updatedAt", "")),
@@ -108,6 +110,7 @@ def parse_node_markdown(path: Path) -> ParsedNodeMarkdown:
         slug=str(metadata["slug"]),
         title=str(metadata["title"]),
         domain=str(metadata["domain"]) if metadata.get("domain") else None,
+        node_type=str(metadata.get("type", "capability")),
         claimed_level=ClaimedLevel(str(metadata["claimedLevel"])),
         created_at=str(metadata["createdAt"]),
         updated_at=str(metadata["updatedAt"]),

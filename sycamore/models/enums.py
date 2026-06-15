@@ -61,6 +61,13 @@ class EdgeType(StrEnum):
     USED_IN_SCENARIO = "used_in_scenario"
 
 
+class NodeType(StrEnum):
+    CAPABILITY = "capability"
+    CONCEPT = "concept"
+    THEOREM = "theorem"
+    PROCESS = "process"
+
+
 class EdgeConfidence(StrEnum):
     EXPLICIT = "explicit"
     IMPLICIT = "implicit"

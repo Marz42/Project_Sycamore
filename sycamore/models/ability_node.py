@@ -13,6 +13,7 @@ class AbilityNode:
     slug: str
     title: str
     domain: str | None
+    node_type: str
     claimed_level: ClaimedLevel
     review_status: ReviewStatus
     node_path: str

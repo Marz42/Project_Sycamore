@@ -16,16 +16,16 @@ P0–P2 已交付，当前处于 **真实使用验证期**。下一阶段：**Ph
 
 # 本轮任务：Phase 1A-0 NodeType 基础设施
 
-- [ ] 新增 `NodeType` 枚举（`capability` / `concept` / `theorem` / `process`）
-- [ ] `AbilityNode` 模型新增 `node_type` 字段
-- [ ] SQLite `ability_nodes` 表新增 `node_type` 列（默认 `capability`），`SCHEMA_VERSION` → 2
-- [ ] 四种类型的 Markdown 模板（`markdown_writer.py`）
-- [ ] `promote --type` CLI 参数 + service 逻辑
-- [ ] `sync` 解析 front matter `type` 写入索引
-- [ ] `doctor` 校验 `type` 为合法枚举值
-- [ ] 现有节点 sync 时自动补齐默认 `capability`
-- [ ] 测试覆盖：四种模板结构、sync 默认值、doctor 校验、promote --type CLI
-- [ ] 版本号升至 `v0.11.2`
+- [x] 新增 `NodeType` 枚举（`capability` / `concept` / `theorem` / `process`）
+- [x] `AbilityNode` 模型新增 `node_type` 字段
+- [x] SQLite `ability_nodes` 表新增 `node_type` 列（默认 `capability`），`SCHEMA_VERSION` → 2
+- [x] 四种类型的 Markdown 模板（`markdown_store.py`）
+- [x] `promote --type` CLI 参数 + service 逻辑
+- [x] `sync` 解析 front matter `type` 写入索引（非法值默认 `capability`）
+- [x] `doctor` 校验 `type` 为合法枚举值
+- [x] 现有节点 sync 时自动补齐默认 `capability`
+- [x] 测试覆盖：14 项新测试（templates/sync/doctor/CLI/migration）
+- [x] 版本号升至 `v0.11.2`
 
 ---
 

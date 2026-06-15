@@ -14,6 +14,7 @@ def _row_to_node(row: sqlite3.Row) -> AbilityNode:
         slug=row["slug"],
         title=row["title"],
         domain=row["domain"],
+        node_type=row["node_type"],
         claimed_level=ClaimedLevel(row["claimed_level"]),
         review_status=ReviewStatus(row["review_status"]),
         node_path=row["node_path"],
@@ -113,6 +114,7 @@ def upsert_node_index(
     slug: str,
     title: str,
     domain: str | None,
+    node_type: str = "capability",
     claimed_level: ClaimedLevel,
     review_status: ReviewStatus,
     node_path: str,
@@ -128,15 +130,16 @@ def upsert_node_index(
         connection.execute(
             """
             INSERT INTO ability_nodes (
-                id, slug, title, domain, claimed_level, review_status,
+                id, slug, title, domain, node_type, claimed_level, review_status,
                 node_path, content_hash, front_matter_hash, created_at, updated_at, last_synced_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             (
                 node_id,
                 slug,
                 title,
                 domain,
+                node_type,
                 claimed_level.value,
                 review_status.value,
                 node_path,
@@ -153,7 +156,7 @@ def upsert_node_index(
         connection.execute(
             """
             UPDATE ability_nodes
-            SET slug = ?, title = ?, domain = ?, claimed_level = ?,
+            SET slug = ?, title = ?, domain = ?, node_type = ?, claimed_level = ?,
                 node_path = ?, content_hash = ?, front_matter_hash = ?,
                 updated_at = ?, last_synced_at = ?
             WHERE id = ?;
@@ -162,6 +165,7 @@ def upsert_node_index(
                 slug,
                 title,
                 domain,
+                node_type,
                 claimed_level.value,
                 node_path,
                 content_hash,
@@ -188,6 +192,7 @@ def insert_ability_node(
     slug: str,
     title: str,
     domain: str | None,
+    node_type: str = "capability",
     claimed_level: ClaimedLevel,
     review_status: ReviewStatus,
     node_path: str,
@@ -199,15 +204,16 @@ def insert_ability_node(
     connection.execute(
         """
         INSERT INTO ability_nodes (
-            id, slug, title, domain, claimed_level, review_status,
+            id, slug, title, domain, node_type, claimed_level, review_status,
             node_path, content_hash, front_matter_hash, created_at, updated_at, last_synced_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """,
         (
             node_id,
             slug,
             title,
             domain,
+            node_type,
             claimed_level.value,
             review_status.value,
             node_path,

@@ -199,6 +199,13 @@ def promote(
         str | None,
         typer.Option("--domain", help="Optional domain label, e.g. shell or docker."),
     ] = None,
+    node_type: Annotated[
+        str,
+        typer.Option(
+            "--type",
+            help="Node type: capability, concept, theorem, or process.",
+        ),
+    ] = "capability",
     claimed_level: Annotated[
         ClaimedLevel,
         typer.Option("--claimed-level", help="Initial claimed level for the node."),
@@ -212,6 +219,7 @@ def promote(
             index=index,
             title=title,
             domain=domain,
+            node_type=node_type,
             claimed_level=claimed_level,
         )
     except DatabaseError as error:

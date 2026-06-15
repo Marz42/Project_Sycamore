@@ -8,6 +8,7 @@ from pathlib import Path
 from sycamore.storage.database import open_initialized_database
 from sycamore.storage.markdown_parser import parse_node_markdown
 from sycamore.storage.node_repository import list_all_nodes
+from sycamore.models.enums import NodeType
 from sycamore.utils.paths import NODES_DIRNAME, get_database_path, get_nodes_dir, get_syca_home
 
 
@@ -88,6 +89,20 @@ def run_doctor(*, home: Path | None = None) -> DoctorReport:
                         code="front_matter_hash_mismatch",
                         message=(
                             f"Front matter hash mismatch for {node.node_path}. Run `syca sync`."
+                        ),
+                        path=node.node_path,
+                    )
+                )
+
+            valid_types = {t.value for t in NodeType}
+            if parsed.node_type not in valid_types:
+                issues.append(
+                    DoctorIssue(
+                        code="invalid_node_type",
+                        message=(
+                            f"Invalid node_type '{parsed.node_type}' in {node.node_path}. "
+                            f"Expected one of: {', '.join(sorted(valid_types))}. "
+                            f"Run `syca sync` to default to 'capability'."
                         ),
                         path=node.node_path,
                     )

@@ -1,6 +1,6 @@
 """SQLite schema definitions for Sycamore."""
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA_STATEMENTS: tuple[str, ...] = (
     """
@@ -14,6 +14,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         slug TEXT NOT NULL UNIQUE,
         title TEXT NOT NULL,
         domain TEXT,
+        node_type TEXT NOT NULL DEFAULT 'capability' CHECK (
+            node_type IN ('capability', 'concept', 'theorem', 'process')
+        ),
         claimed_level TEXT NOT NULL CHECK (claimed_level IN ('L0', 'L1', 'L2', 'L3')),
         review_status TEXT NOT NULL CHECK (
             review_status IN ('not_reviewed', 'challenged', 'needs_revision', 'accepted_by_user')

@@ -29,15 +29,35 @@ def get_schema_version(connection: sqlite3.Connection) -> int | None:
     return int(row["version"])
 
 
+_MIGRATIONS: dict[int, str] = {
+    1: "ALTER TABLE ability_nodes ADD COLUMN node_type TEXT NOT NULL DEFAULT 'capability';",
+}
+
+
+def _migrate(connection: sqlite3.Connection, current_version: int) -> int:
+    """Run migrations sequentially from current_version to SCHEMA_VERSION."""
+    for v in range(current_version, SCHEMA_VERSION):
+        sql = _MIGRATIONS.get(v + 1)
+        if sql is None:
+            raise DatabaseError(f"No migration defined for schema v{v} → v{v + 1}.")
+        connection.execute(sql)
+    connection.execute("UPDATE schema_version SET version = ?;", (SCHEMA_VERSION,))
+    connection.commit()
+    return SCHEMA_VERSION
+
+
 def initialize_schema(connection: sqlite3.Connection) -> bool:
     """Apply schema statements. Returns True if this call initialized a new database."""
     existing_version = get_schema_version(connection)
     if existing_version is not None:
-        if existing_version != SCHEMA_VERSION:
-            raise DatabaseError(
-                f"Unsupported schema version {existing_version}; expected {SCHEMA_VERSION}."
-            )
-        return False
+        if existing_version == SCHEMA_VERSION:
+            return False
+        if existing_version < SCHEMA_VERSION:
+            _migrate(connection, existing_version)
+            return False
+        raise DatabaseError(
+            f"Unsupported schema version {existing_version}; expected {SCHEMA_VERSION}."
+        )
 
     for statement in SCHEMA_STATEMENTS:
         connection.execute(statement)
