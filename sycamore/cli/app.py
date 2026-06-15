@@ -15,7 +15,14 @@ from sycamore.core.link_service import LinkError, create_link
 from sycamore.core.practice_service import PracticeError, log_practice
 from sycamore.core.promote_service import PromoteError, promote_capture
 from sycamore.core.query_service import query_cheatsheet
-from sycamore.core.recover_service import RecoverError, preview_recovery_drill, record_recovery_outcome
+from sycamore.core.recover_service import (
+    FailType,
+    RecoverError,
+    RecoverMode,
+    RecoverRating,
+    preview_recovery_drill,
+    record_recovery_outcome,
+)
 from sycamore.core.review_service import (
     ReviewError,
     decide_review,
@@ -24,7 +31,7 @@ from sycamore.core.review_service import (
     run_review,
 )
 from sycamore.models.enums import CaptureKind, ClaimedLevel, EdgeType, UserDecision
-from sycamore.core.status_service import list_domain_status, list_stale_nodes
+from sycamore.core.status_service import list_domain_status, list_stale_nodes, list_weak_nodes
 from sycamore.core.sync_service import sync_nodes
 from sycamore.storage.database import DatabaseError
 
@@ -431,13 +438,15 @@ def level_set(
 def status(
     stale: Annotated[bool, typer.Option("--stale", help="Show nodes needing recovery practice.")] = False,
     domain: Annotated[str | None, typer.Option("--domain", help="Show freshness for a domain.")] = None,
+    weak: Annotated[bool, typer.Option("--weak", help="Show weakness analysis (failure patterns).")] = False,
 ) -> None:
-    """Show node status summaries."""
-    if stale and domain:
-        console.print("[red]Choose either --stale or --domain, not both.[/red]")
+    """Show node status summaries (stale, domain freshness, or weakness analysis)."""
+    flags = [stale, bool(domain), weak]
+    if sum(flags) > 1:
+        console.print("[red]Choose exactly one of --stale, --domain, or --weak.[/red]")
         raise typer.Exit(code=1)
-    if not stale and not domain:
-        console.print("[red]Provide --stale or --domain.[/red]")
+    if sum(flags) == 0:
+        console.print("[red]Provide --stale, --domain, or --weak.[/red]")
         raise typer.Exit(code=1)
 
     if stale:
@@ -466,6 +475,36 @@ def status(
                 item.node.claimed_level.value,
                 item.last_activity_at,
                 str(item.days_since_activity),
+            )
+
+        console.print(table)
+        return
+
+    if weak:
+        try:
+            report = list_weak_nodes()
+        except DatabaseError as error:
+            _handle_database_error(error)
+
+        if not report.nodes:
+            console.print("[green]No weak nodes found — all recoveries passed.[/green]")
+            return
+
+        table = Table(title=f"Weakness Analysis ({report.total_fails} total failures)")
+        table.add_column("Title")
+        table.add_column("Domain")
+        table.add_column("Fails")
+        table.add_column("Top Fail Type")
+        table.add_column("Risk")
+
+        for w in report.nodes:
+            risk_color = {"high": "red", "medium": "yellow", "low": "dim"}.get(w.risk_level, "")
+            table.add_row(
+                w.node.title,
+                w.node.domain or "—",
+                str(w.fail_count),
+                w.top_fail_type or "—",
+                f"[{risk_color}]{w.risk_level}[/{risk_color}]",
             )
 
         console.print(table)
@@ -503,31 +542,80 @@ def status(
 @app.command()
 def recover(
     node_id: str,
-    passed: Annotated[bool, typer.Option("--pass", help="Record a successful recovery drill.")] = False,
-    failed: Annotated[bool, typer.Option("--fail", help="Record a failed recovery drill.")] = False,
+    passed: Annotated[bool, typer.Option("--pass", help="Recovery passed — normal recall.")] = False,
+    failed: Annotated[bool, typer.Option("--fail", help="Recovery failed — could not recall.")] = False,
+    hard: Annotated[bool, typer.Option("--hard", help="Remembered but with significant effort.")] = False,
+    easy: Annotated[bool, typer.Option("--easy", help="Recalled effortlessly.")] = False,
+    mode: Annotated[
+        str,
+        typer.Option(
+            "--mode",
+            help="Drill mode: recall-first (default), supported, or full.",
+        ),
+    ] = "recall-first",
+    fail_type: Annotated[
+        str | None,
+        typer.Option(
+            "--fail-type",
+            help="Failure category: recall, concept, procedure, or transfer.",
+        ),
+    ] = None,
     note: Annotated[str | None, typer.Option("--note", help="Optional note for the outcome.")] = None,
 ) -> None:
-    """Run a recovery drill for a node (explain Mental Model or use Cheatsheet)."""
-    if passed and failed:
-        console.print("[red]Choose at most one of --pass or --fail.[/red]")
+    """Run a recovery drill — test your ability to recall a node's Mental Model."""
+    rating_flags = [passed, failed, hard, easy]
+    if sum(rating_flags) > 1:
+        console.print("[red]Choose at most one of --pass, --fail, --hard, or --easy.[/red]")
         raise typer.Exit(code=1)
 
-    if passed or failed:
+    if sum(rating_flags) == 1:
+        if passed:
+            rating = RecoverRating.PASS
+        elif hard:
+            rating = RecoverRating.HARD
+        elif easy:
+            rating = RecoverRating.EASY
+        else:
+            rating = RecoverRating.FAIL
+
+        ft = None
+        if fail_type and rating == RecoverRating.FAIL:
+            try:
+                ft = FailType(fail_type)
+            except ValueError:
+                console.print(
+                    f"[red]Invalid --fail-type '{fail_type}'. "
+                    f"Choose: recall, concept, procedure, or transfer.[/red]"
+                )
+                raise typer.Exit(code=1) from None
+        elif fail_type and rating != RecoverRating.FAIL:
+            console.print("[red]--fail-type is only valid with --fail.[/red]")
+            raise typer.Exit(code=1)
+
         try:
-            result = record_recovery_outcome(node_id, passed=passed, note=note)
+            result = record_recovery_outcome(node_id, rating=rating, fail_type=ft, note=note)
         except DatabaseError as error:
             _handle_database_error(error)
         except RecoverError as error:
             _handle_recover_error(error)
 
-        label = "passed" if result.passed else "failed"
-        console.print(
-            f"[green]Recovery {label}[/green] for {result.node.title} at {result.recorded_at}"
-        )
+        rating_label = {"pass": "passed", "fail": "failed", "hard": "hard", "easy": "easy"}
+        label = rating_label.get(result.rating, result.rating)
+        msg = f"[green]Recovery {label}[/green] for {result.node.title}"
+        if result.fail_type:
+            msg += f" ([yellow]{result.fail_type}[/yellow])"
+        console.print(f"{msg} at {result.recorded_at}")
         return
 
+    # Drill mode — no outcome flag given
     try:
-        drill = preview_recovery_drill(node_id)
+        drill_mode = RecoverMode(mode)
+    except ValueError:
+        console.print(f"[red]Invalid --mode '{mode}'. Choose: recall-first, supported, or full.[/red]")
+        raise typer.Exit(code=1) from None
+
+    try:
+        drill = preview_recovery_drill(node_id, mode=drill_mode)
     except DatabaseError as error:
         _handle_database_error(error)
     except RecoverError as error:
@@ -538,10 +626,21 @@ def recover(
         if drill.is_stale
         else f"[green]Fresh[/green] ({drill.days_since_activity} days since activity)"
     )
-    console.print(f"[bold]{drill.node.title}[/bold] ({drill.node.claimed_level.value}) — {stale_hint}")
-    console.print("\n[bold]Recovery drill[/bold]")
-    console.print("1. Explain the Mental Model in your own words.")
-    console.print("2. Complete a small task using the Cheatsheet (if present).")
+    console.print(
+        f"[bold]{drill.node.title}[/bold] "
+        f"({drill.node.claimed_level.value}, {drill.node_type}) — {stale_hint}"
+    )
+
+    if drill_mode in (RecoverMode.RECALL_FIRST, RecoverMode.SUPPORTED):
+        console.print(f"\n[bold cyan]Recall challenge:[/bold cyan] {drill.recall_prompt}")
+        if drill_mode == RecoverMode.SUPPORTED and drill.cheatsheet:
+            lines = drill.cheatsheet.strip().splitlines()
+            hint = lines[0] if lines else drill.cheatsheet[:80]
+            console.print(f"\n[dim]Hint (first line of Cheatsheet):[/dim] {hint[:120]}")
+        console.print("\nPress Enter when ready to see the answer...")
+        # In CLI: just show a separator; in interactive mode this would wait for input
+        console.print("[dim]─" * 60 + "[/dim]")
+
     console.print("\n[bold]Mental Model[/bold]")
     console.print(drill.mental_model)
     if drill.cheatsheet:
@@ -549,7 +648,10 @@ def recover(
         console.print(drill.cheatsheet)
     else:
         console.print("\n[yellow]No Cheatsheet yet.[/yellow]")
-    console.print("\nRecord outcome: [cyan]syca recover <node-id> --pass[/cyan] or [cyan]--fail[/cyan]")
+    console.print(
+        "\nRecord: [cyan]--pass[/cyan] | [cyan]--hard[/cyan] | [cyan]--easy[/cyan] | "
+        "[cyan]--fail --fail-type recall|concept|procedure|transfer[/cyan]"
+    )
 
 
 @app.command()

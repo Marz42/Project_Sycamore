@@ -32,16 +32,16 @@ P0–P2 已交付，Phase 1A-0 已完成。当前阶段：**Phase 1A Recover 改
 
 # 本轮任务：Phase 1A Recover 改造
 
-- [ ] `recover --mode recall-first`：先展示标题+线索，用户回忆后再展开
-- [ ] `recover --mode supported`：展示局部提示
-- [ ] `recover --mode full`：完整展示（保留旧行为作为 fallback）
-- [ ] `recover --hard` / `--easy`：四级评分（hard/good/easy 补充现有 pass/fail）
-- [ ] `recover --fail-type recall|concept|procedure|transfer`：失败分类
-- [ ] `capability_events.payload_json` 写入 fail-type 数据
-- [ ] `syca status --weak`：薄弱画像（按节点/领域展示失败类型分布）
-- [ ] 类型感知 recover prompt：Capability 问步骤、Concept 问核心主张、Theorem 问直觉、Process 问机理
-- [ ] 测试覆盖：三种模式、fail-type 持久化、weak 列表、类型感知 prompt
-- [ ] 版本号升至 `v0.12.0`
+- [x] `recover --mode recall-first`：先展示标题+线索，用户回忆后再展开
+- [x] `recover --mode supported`：展示局部提示
+- [x] `recover --mode full`：完整展示（保留旧行为作为 fallback）
+- [x] `recover --hard` / `--easy`：四级评分（hard/good/easy 补充现有 pass/fail）
+- [x] `recover --fail-type recall|concept|procedure|transfer`：失败分类
+- [x] `capability_events.payload_json` 写入 fail-type 数据
+- [x] `syca status --weak`：薄弱画像（按节点/领域展示失败类型分布）
+- [x] 类型感知 recover prompt：Capability 问步骤、Concept 问核心主张、Theorem 问直觉、Process 问机理
+- [x] 测试覆盖：29 项新测试（prompt/modes/ratings/fail-types/weak/CLI）
+- [x] 版本号升至 `v0.12.0`
 
 ---
 
