@@ -73,7 +73,10 @@ Phase 1A-0 ── NodeType 基础设施
 Phase 1A ── Recover 改造（提取优先）
 Phase 1B ── Scheduler 引入
        ↓
-Phase 2  ── 学习建模层 + Clarify + Edit 引导
+Phase 2A ── Clarify + Completion 引擎
+Phase 2B ── Edit + Check 编辑引导
+       ↓
+Phase 2C ── LLM 辅助填充（待定）
        ↓
 Phase 3  ── 迁移与应用层
        ↓
@@ -89,7 +92,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 
 # Phase 0：历史交付（已完成）
 
-> 当前状态：**v0.12.0** — P0–P2 全部交付，Phase 1A-0 / 1A 完成
+> 当前状态：**v0.14.0** — P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B 完成
 
 ## 已完成的阶段
 
@@ -102,6 +105,9 @@ Phase 5  ── LLM 服务扩展与资产层候选
 | P2 恢复与关系 | v0.11.1 | recover / link / graph / status --domain |
 | Phase 1A-0 | v0.11.2 | NodeType 枚举 / 四种模板 / promote --type / schema v2 |
 | Phase 1A | v0.12.0 | recall-first recover / fail-type / ratings / status --weak |
+| Phase 1B | v0.13.0 | FSRS-5 调度器 / syca schedule / node_scheduler_state |
+| Phase 2A | v0.14.0 | clarify / completion 引擎 / placeholder 检测 |
+| Phase 2B | v0.14.0 | edit / check / status --completion |
 
 ## 当前已有功能清单
 
@@ -384,105 +390,147 @@ syca schedule --limit 10            # 控制单次输出量
 
 ---
 
-# Phase 2：学习建模层 + Edit 引导 + Clarify
+# Phase 2A：Clarify + Completion 引擎
 
-> **目标**：让节点从"模板占位"变成"有结构、有类型、有引导、可验证完成度的可解释能力单元"。
+> **目标**：建立"快存慢理"闭环中的"理"——从 capture 到 promote 的归类引导，以及节点完成度的量化标准。
 >
-> 估算周期：**2–3 周**
+> 估算周期：**1 周** | ✅ 已完成（v0.14.0）
 
 ## 动机
 
-当前节点模板只有 `Core Idea` + `Boundaries` 两个结构化块，且 `promote` 后直接落到空白 Markdown，没有引导流程。这导致很多节点止步于模板占位，从未真正完成"编码"。
+用户在 `capture` 和 `promote` 之间缺少一个"判断"步骤：这个碎片是什么类型的知识？应该归到哪个领域？建议用什么标题？没有这个步骤，promote 的参数完全靠用户猜。
 
-真正决定"学新阶段是否成立"的，不是有没有归类成功（clarify），而是用户有没有把节点写成**可解释、可对比、可验证**的能力单元。因此 Phase 2 的主功能是 `edit`（结构化编辑引导），`clarify` 是辅助功能（帮助 capture → promote 的节点成形）。
+同时，promote 之后的节点长期处于"模板占位"状态，没有客观标准判断"这个节点写完了没有"。Completion 引擎解决这个问题。
 
 ## 核心命令
 
 ```bash
-# 主功能：edit — 结构化编辑引导（Phase 2 核心）
-syca edit <node>                   # 按区块逐步引导填写
-syca check <node>                  # 检查节点完成度（draft/modeled/contrasted/reviewable）
-
-# 辅助功能：clarify — 帮助 capture → promote 成形
-syca clarify <capture-id>          # 归类引导 + 能力断言草稿
-
-# 升格时指定节点类型
-syca promote <id> --type capability
-syca promote <id> --type concept
-syca promote <id> --type theorem
-syca promote <id> --type process
+syca clarify [<capture-id>]    # 分析最新（或指定）捕获项，建议 promote 参数
+syca status --completion draft  # 按完成度筛选节点
 ```
 
 ## 交付物
 
-### edit 命令（主功能）
+### Completion 引擎 (`core/completion.py`)
 
-- `syca edit <node>` 按区块逐步引导：
-  1. 先写一句话解释（Core Idea）
-  2. 写它解决什么具体问题（Problem It Solves）
-  3. 写一个反例或误用场景（Boundaries）
-  4. 写容易混淆的概念及区分方法（Contrast）
-  5. 写最小验证任务（Minimal Task）
-  6. 判断自己当前 claimed level
-- 每个步骤输出提示性问题和示例，用户输入后写入 Markdown
-- 支持 `--block` 参数单独编辑某个区块（如 `--block contrast`）
-- 支持跳过（不强制填完所有区块）
+- `CompletionState` 枚举：`draft` / `modeled` / `contrasted` / `reviewable`
+- `assess_completion(parsed)` → 分析节点正文，返回状态 + 缺失区块清单
+- 占位符检测：识别模板默认文本 vs 用户真实输入
+- 支持 h2 和 h3 级区块扫描（兼容 `## Mental Model > ### Core Idea` 嵌套结构）
 
-### clarify 命令（辅助功能）
+### Clarify 命令 (`core/clarify_service.py`)
 
-- 位于 `capture` 和 `promote` 之间（非必选，可用 `--no-interactive` 跳过）
-- 交互式问三个问题：
-  1. 这是操作能力、概念框架、定理模型还是系统机制？→ 建议 `--type`
-  2. 它解决什么具体问题？→ 建议能力断言草稿
-  3. 你现在是"看懂了"还是会"自己做了"？→ 建议初始 claimed level
-- 根据回答生成更准确的 promote 参数建议，但不强制采纳
-
-### 节点类型模板
-
-每种类型有不同的 Markdown 模板结构与考核方式（详见 `data-contracts.md` NodeType 枚举）：
-
-| 类型 | 适用领域 | 核心区块 | 考核方式 |
-|:--|:--|:--|:--|
-| `capability` | IT、软件操作、外语 | 步骤 / 坑点 / Cheatsheet | 给定场景下能否正确执行？ |
-| `concept` | 哲学、历史、经济、管理 | 核心主张 / 历史语境 / 批判 | 能否用该框架分析新事件？ |
-| `theorem` | 数学、物理、算法 | 公式 / 直觉推导 / 极值边界 | 边界失效时能否识别反例？ |
-| `process` | 化工、机械、生物 | 机理 / 参数妥协 / 物理安全 | 外部扰动时如何调节参数？ |
-
-### 扩展 Mental Model 固定块
-
-所有节点类型共享的区块：
-
-- **Core Idea**：用自己的话解释本质（已有，保持）
-- **Problem It Solves**：它解决什么问题（新增）
-- **Boundaries**：适合/不适合/易误用（已有，保持）
-- **Contrast**：与什么容易混淆，如何区分（新增）
-- **Minimal Task**：最小可验证任务（新增）
-- **Cheatsheet**：低频但实操必要的操作片段（已有，保持）
-
-### 节点完成度（Completion State）
-
-每个节点有明确的完成度状态，决定是否可进入复习和迁移：
-
-| 状态 | 含义 | 条件 | 能否 recover/review | 能否 transfer |
-|:--|:--|:--|:--:|:--:|
-| `draft` | 刚 promote，关键区块仍为占位 | Core Idea 仍为模板占位文本 | ❌ | ❌ |
-| `modeled` | 已完成核心建模 | Core Idea + Problem + Boundaries + Minimal Task 已非占位 | ✅ | ❌ |
-| `contrasted` | 已完成对比校准 | 含 Contrast 且不为空 | ✅ | ✅（仅 A/B 层） |
-| `reviewable` | 达到可高质量复习的质量 | modeled + contrasted + Cheatsheet 非空 | ✅ | ✅ |
-
-- `syca check <node>` 输出当前完成度状态和缺失区块清单（非强制）
-- `syca status` 可筛选 `--completion draft|modeled|contrasted|reviewable`
-- 调度器和迁移层可基于完成度过滤节点（draft 不出现在 schedule 中；transfer 仅对 contrasted+ 生效）
+- `suggest_promotion(capture_id)` → 分析捕获项内容，输出参数建议
+- 关键词推断：中英文关键词 → type (capability/concept/theorem/process)
+- 领域检测：检测常见领域关键词 → domain 建议
+- 等级推断：自然语言中的"看懂/会用"等表述 → claimed level 建议
+- CLI 输出：`[cyan]` 高亮建议的完整 `syca promote` 命令
 
 ## 退出标准
 
-- `clarify` 能在 capture 和 promote 之间正确归类节点类型
-- `promote --type capability|concept|theorem|process` 生成不同的模板结构
-- `syca edit <node>` 按区块引导填入，每个区块之前展示提示问题
-- `syca check <node>` 正确报告完成度状态和缺失区块
-- 四类节点类型的 Markdown 模板均包含 `Contrast` 和 `Minimal Task`
-- 测试覆盖：edit 引导流程、check 完成度判断、四种模板结构、completion state 过渡
-- 版本号升至 **v0.14.0**
+- `clarify` 基于关键词正确归类（测试覆盖 capability/concept 识别）
+- `completion` 正确区分 draft/modeled/contrasted/reviewable 四个状态
+- 占位符检测覆盖中英文模板文本
+- 测试覆盖：4 completion states + 3 clarify scenarios
+- ✅ **Phase 2A 完成**（已合入 v0.14.0）
+
+---
+
+# Phase 2B：Edit + Check 编辑引导
+
+> **目标**：让用户不再"打开 Markdown 手写"，而是通过类型感知的逐步提示完成节点编码。
+>
+> 估算周期：**1 周** | ✅ 已完成（v0.14.0）
+
+## 动机
+
+Phase 2A 解决了"判断"（clarify）和"衡量"（completion），但"执行"仍然靠用户手动编辑 Markdown。Phase 2B 提供类型感知的编辑引导。
+
+## 核心命令
+
+```bash
+syca edit <node-id>                   # 交互式逐步编辑
+syca edit <node-id> --block contrast  # 单块编辑
+syca check <node-id>                  # 检查完成度
+```
+
+## 交付物
+
+### Edit 命令 (`core/edit_service.py`)
+
+- `get_edit_blocks(node_type)` → 返回该类型的编辑顺序和提示词
+- `edit_node_block(node_id, block_name, content)` → 写入单个区块
+- 四种类型的提示词：
+
+| 类型 | 引导区块 |
+|:--|:--|
+| `capability` | Core Idea → Boundaries → Steps → Pitfalls → Cheatsheet → Contrast → Minimal Task |
+| `concept` | Core Thesis → Historical Context → Critique → Apply To → Contrast → Minimal Task |
+| `theorem` | Formula → Intuition → Boundary Conditions → Counterexamples → Contrast → Minimal Task |
+| `process` | Mechanism → Parameters → Disturbance Response → Contrast → Minimal Task |
+
+- `--block` 支持单块精准编辑
+- 修改后自动 sync 索引（hash 更新）
+- 输入为空时跳过（`[dim]Skipped.[/dim]`）
+
+### Check 命令
+
+- `syca check <node-id>` → Rich 输出完成度状态和缺失区块
+- 彩色状态标签：`[red]draft[/red]` / `[yellow]modeled[/yellow]` / `[cyan]contrasted[/cyan]` / `[green]reviewable[/green]`
+
+### Status 扩展
+
+- `syca status --completion <state>` → 表格列出匹配节点（Title / Type / State / Missing）
+
+## 退出标准
+
+- `edit` 四种类型各自生成不同引导流程
+- `edit --block` 单块编辑成功并同步索引
+- `check` 正确报告完成度和缺失区块
+- `status --completion` 按状态筛选
+- 测试覆盖：edit 写入、新 section 创建、check 输出
+- ✅ **Phase 2B 完成**（已合入 v0.14.0）
+
+---
+
+# Phase 2C：LLM 辅助填充（待定）
+
+> **目标**：在 edit 流程中引入 LLM，为每个区块生成草稿建议，降低编码摩擦。
+>
+> 估算周期：**1 周** | 🔴 待启动
+
+## 动机
+
+当前 edit 只展示提示问题，用户仍需从头写。如果 LLM 能生成草稿（Core Idea 候选、Boundaries 初稿、Contrast 建议），用户只需审阅和修改，大幅降低编码阻力。
+
+核心原则不变：LLM 只负责草稿/建议，**最终内容由用户确认和修改**。
+
+## 核心命令
+
+```bash
+syca edit <node-id> --suggest        # 每个区块先展示 LLM 建议，用户修改后确认
+syca check <node-id> --suggest       # LLM 分析缺失区块，给出填充建议
+```
+
+## 交付物
+
+- `edit_service.edit_node_block` 新增 `suggest: bool` 参数
+- `review_service` 新增 `suggest_block_fill(node, block_name)` 方法
+- `DeepSeekReviewProvider` 新增 `suggest_fill` prompt 模板
+- 每种类型每种区块有对应的 prompt 模板
+- `syca edit --suggest` CLI 参数
+
+## 退出标准
+
+- LLM 为四种类型的每个区块生成合理草稿
+- 用户可修改/拒绝草稿（不强制采纳）
+- 无 LLM 时 `--suggest` 静默降级为当前行为
+- 测试覆盖：mock provider 草稿生成、拒绝流程
+
+## 不做
+
+- 不自动接受 LLM 建议（必须经过用户确认）
+- 不覆盖已填写的区块
 
 ---
 
