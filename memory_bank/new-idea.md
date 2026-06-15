@@ -1015,3 +1015,42 @@ uv run syca inbox import scratch.md
 
 - **输入期**：极高通量、极低阻力。不弹窗、不要求必填、不打断心流。
 - **内化期**：强迫思考、结构化、费力。promote/edit 阶段才是"编码"的主战场。
+
+---
+
+# Recover 评分内联化
+
+> **问题**：当前 recover drill 展示完后，提示行是静态文本：
+> `Record: --pass | --hard | --easy | --fail --fail-type recall|concept|procedure|transfer`
+> 用户必须退回到 shell，手动拼 `syca recover <id> --hard`。这打断了"回忆 → 评分"的心流。
+
+> **目标**：drill 结束时交互式评分，像 `edit` 一样在当前流程内完成。零摩擦。
+
+## 设计
+
+```text
+Mental Model
+...
+
+Cheatsheet
+...
+
+Record: [P]ass  [H]ard  [E]asy  [F]ail
+How did you do? █
+```
+
+- 用户敲 `p` → 记录 `--pass`
+- 用户敲 `h` → 记录 `--hard`
+- 用户敲 `e` → 记录 `--easy`
+- 用户敲 `f` → 追问 fail-type：
+  ```
+  Fail type: [r]ecall  [c]oncept  [p]rocedure  [t]ransfer
+  > _
+  ```
+  然后记录 `--fail --fail-type concept` 等。
+
+## 实现要点
+
+- 使用 `rich.prompt.Prompt.ask` 实现单键交互
+- Ctrl+C 退出不记录
+- 向后兼容：保留 CLI `--pass`/`--fail` 等 flag（用于脚本化）
