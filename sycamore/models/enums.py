@@ -51,6 +51,9 @@ class CapabilityEventType(StrEnum):
     RECOVERY_FAILED = "recovery_failed"
     MANUAL_LEVEL_CHANGED = "manual_level_changed"
     NODE_SYNCED = "node_synced"
+    TRANSFER_SUCCESS = "transfer_success"
+    TRANSFER_PARTIAL = "transfer_partial"
+    TRANSFER_FAIL = "transfer_fail"
 
 
 class EdgeType(StrEnum):

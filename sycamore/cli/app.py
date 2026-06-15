@@ -11,6 +11,13 @@ from sycamore.core.completion import CompletionState, assess_completion
 from sycamore.core.doctor_service import run_doctor
 from sycamore.core.edit_service import EditError, edit_node_block, get_edit_blocks
 from sycamore.core.graph_service import GraphError, build_domain_graph
+from sycamore.core.transfer_service import (
+    TransferError,
+    TransferLevel,
+    TransferOutcome,
+    generate_scenario,
+    record_transfer_outcome,
+)
 from sycamore.core.graph_render import format_domain_graph_text
 from sycamore.core.init_service import initialize_sycamore
 from sycamore.core.level_service import LevelError, set_claimed_level
@@ -1040,6 +1047,131 @@ def doctor() -> None:
         console.print(f"[red]{issue.code}[/red]{location}: {issue.message}")
 
     raise typer.Exit(code=1)
+
+
+def _handle_transfer_error(error: TransferError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+@app.command()
+def transfer(
+    node_id: str,
+    level: Annotated[
+        str,
+        typer.Option(
+            "--level",
+            help="Transfer level: A (variant), B (boundary), C (composition), D (real scenario).",
+        ),
+    ] = "A",
+    outcome: Annotated[
+        str | None,
+        typer.Option(
+            "--outcome",
+            help="Record outcome: success, partial, or fail.",
+        ),
+    ] = None,
+    note: Annotated[str | None, typer.Option("--note", help="Optional note.")] = None,
+) -> None:
+    """Generate a transfer scenario or record outcome."""
+    try:
+        tl = TransferLevel(level.upper())
+    except ValueError:
+        console.print("[red]Invalid level. Choose A, B, C, or D.[/red]")
+        raise typer.Exit(code=1) from None
+
+    if outcome:
+        try:
+            ot = TransferOutcome(outcome)
+        except ValueError:
+            console.print("[red]Invalid outcome. Choose success, partial, or fail.[/red]")
+            raise typer.Exit(code=1) from None
+
+        try:
+            result = record_transfer_outcome(node_id, level=tl, outcome=ot, note=note)
+        except DatabaseError as error:
+            _handle_database_error(error)
+        except TransferError as error:
+            _handle_transfer_error(error)
+
+        console.print(
+            f"[green]Transfer {result.outcome.value}[/green] "
+            f"for {result.node.title} (level {result.level.value}) at {result.recorded_at}"
+        )
+        return
+
+    try:
+        scenario = generate_scenario(node_id, level=tl)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except TransferError as error:
+        _handle_transfer_error(error)
+
+    console.print(f"[bold]{scenario.node.title}[/bold] ({scenario.node.claimed_level.value})")
+    console.print(f"[dim]Level {scenario.level.value}: {scenario.description}[/dim]")
+    console.print(f"\n[bold cyan]Scenario:[/bold cyan]\n{scenario.scenario}")
+    console.print(
+        f"\n[dim]Self-assess: [cyan]syca transfer {node_id[:8]} --level {level.upper()}"
+        f" --outcome success|partial|fail[/cyan][/dim]"
+    )
+
+
+@app.command()
+def challenge(
+    node_id: str | None = None,
+    domain: Annotated[
+        str | None,
+        typer.Option("--domain", help="Pick a random node from this domain for a challenge."),
+    ] = None,
+) -> None:
+    """Get a transfer challenge — variant recognition, boundary judgment, or composition."""
+    import random
+
+    from sycamore.storage.database import open_initialized_database
+    from sycamore.storage.node_repository import list_all_nodes, list_nodes_by_domain
+    from sycamore.utils.paths import get_database_path, get_syca_home
+
+    root = get_syca_home()
+    connection = open_initialized_database(get_database_path(root))
+    try:
+        if domain:
+            nodes = list_nodes_by_domain(connection, domain)
+            if not nodes:
+                console.print(f"[red]No nodes found in domain '{domain}'.[/red]")
+                raise typer.Exit(code=1) from None
+        elif node_id:
+            from sycamore.core.node_context import load_node_context
+            ctx = load_node_context(connection, node_id, home=root)
+            nodes = [ctx.node]
+        else:
+            nodes = list_all_nodes(connection)
+    finally:
+        connection.close()
+
+    if not nodes:
+        console.print("[yellow]No nodes available. Run some promotes first.[/yellow]")
+        return
+
+    if not node_id:
+        node = random.choice(nodes)
+        node_id = node.id[:8]
+    else:
+        node = nodes[0]
+
+    levels = [TransferLevel.A, TransferLevel.B, TransferLevel.C]
+    level = random.choice(levels)
+
+    try:
+        scenario = generate_scenario(node.id, level=level)
+    except TransferError as error:
+        _handle_transfer_error(error)
+
+    console.print(f"[bold]Challenge:[/bold] {scenario.node.title}")
+    console.print(f"[dim]Level {scenario.level.value}: {scenario.description}[/dim]")
+    console.print(f"\n[bold cyan]Scenario:[/bold cyan]\n{scenario.scenario}")
+    console.print(
+        f"\n[dim]Self-assess: [cyan]syca transfer {node_id} --level {level.value} --outcome success|partial|fail[/cyan][/dim]"
+    )
 
 
 def main() -> None:

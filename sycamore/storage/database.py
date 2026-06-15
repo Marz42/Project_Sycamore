@@ -39,6 +39,21 @@ _MIGRATIONS: dict[int, str] = {
         "FOREIGN KEY (node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE"
         ");"
     ),
+    3: (
+        # Recreate capability_events with expanded type CHECK (adds transfer_* types)
+        "CREATE TABLE capability_events_new ("
+        "id TEXT PRIMARY KEY, node_id TEXT, capture_id TEXT,"
+        "type TEXT NOT NULL CHECK (type IN ("
+        "'capture_created','capture_promoted','practice_logged','cheatsheet_queried',"
+        "'review_completed','recovery_passed','recovery_failed','manual_level_changed',"
+        "'node_synced','transfer_success','transfer_partial','transfer_fail')),"
+        "payload_json TEXT, created_at TEXT NOT NULL,"
+        "FOREIGN KEY (node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE,"
+        "FOREIGN KEY (capture_id) REFERENCES capture_items(id) ON DELETE CASCADE);"
+        "INSERT INTO capability_events_new SELECT * FROM capability_events;"
+        "DROP TABLE capability_events;"
+        "ALTER TABLE capability_events_new RENAME TO capability_events;"
+    ),
 }
 
 

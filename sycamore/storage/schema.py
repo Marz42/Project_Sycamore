@@ -1,6 +1,6 @@
 """SQLite schema definitions for Sycamore."""
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA_STATEMENTS: tuple[str, ...] = (
     """
@@ -58,7 +58,10 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
                 'recovery_passed',
                 'recovery_failed',
                 'manual_level_changed',
-                'node_synced'
+                'node_synced',
+                'transfer_success',
+                'transfer_partial',
+                'transfer_fail'
             )
         ),
         payload_json TEXT,
