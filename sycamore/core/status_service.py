@@ -180,3 +180,88 @@ def list_weak_nodes(
         return WeaknessReport(nodes=tuple(weak_nodes), total_fails=total_fails)
     finally:
         connection.close()
+
+
+# ── Cluster risk ─────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ClusterRiskEntry:
+    domain: str
+    node_count: int
+    recover_fails: int
+    transfer_fails: int
+    total_fails: int
+    risk_level: str  # "high" | "medium" | "low"
+
+
+@dataclass(frozen=True)
+class ClusterRiskReport:
+    entries: tuple[ClusterRiskEntry, ...]
+
+
+def list_cluster_risk(
+    *,
+    home: Path | None = None,
+) -> ClusterRiskReport:
+    """Analyze fail density per domain. Flags domains with high failure concentration."""
+    root = home or get_syca_home()
+    connection = open_initialized_database(get_database_path(root))
+    try:
+        from sycamore.storage.node_repository import list_all_nodes
+
+        nodes = list_all_nodes(connection)
+        domain_nodes: dict[str, list[str]] = {}
+        for node in nodes:
+            d = node.domain or "(no domain)"
+            domain_nodes.setdefault(d, []).append(node.id)
+
+        entries: list[ClusterRiskEntry] = []
+        for domain, node_ids in domain_nodes.items():
+            if not node_ids:
+                continue
+
+            id_list = ",".join("?" * len(node_ids))
+            recover_row = connection.execute(
+                f"""
+                SELECT COUNT(*) FROM capability_events
+                WHERE node_id IN ({id_list}) AND type = ?;
+                """,
+                (*node_ids, "recovery_failed"),
+            ).fetchone()
+            transfer_row = connection.execute(
+                f"""
+                SELECT COUNT(*) FROM capability_events
+                WHERE node_id IN ({id_list}) AND type = ?;
+                """,
+                (*node_ids, "transfer_fail"),
+            ).fetchone()
+
+            rf = recover_row[0] if recover_row else 0
+            tf = transfer_row[0] if transfer_row else 0
+            total = rf + tf
+
+            if total == 0:
+                continue
+
+            density = total / len(node_ids)
+            if density >= 2.0:
+                risk = "high"
+            elif density >= 1.0:
+                risk = "medium"
+            else:
+                risk = "low"
+
+            entries.append(ClusterRiskEntry(
+                domain=domain,
+                node_count=len(node_ids),
+                recover_fails=rf,
+                transfer_fails=tf,
+                total_fails=total,
+                risk_level=risk,
+            ))
+
+        entries.sort(key=lambda e: e.total_fails, reverse=True)
+        return ClusterRiskReport(entries=tuple(entries))
+    finally:
+        connection.close()

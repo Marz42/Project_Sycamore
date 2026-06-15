@@ -54,6 +54,22 @@ _MIGRATIONS: dict[int, str] = {
         "DROP TABLE capability_events;"
         "ALTER TABLE capability_events_new RENAME TO capability_events;"
     ),
+    4: (
+        # Recreate ability_edges with expanded type CHECK (adds contrast/composition/diagnostic)
+        "CREATE TABLE ability_edges_new ("
+        "id TEXT PRIMARY KEY, source_node_id TEXT NOT NULL, target_node_id TEXT NOT NULL,"
+        "type TEXT NOT NULL CHECK (type IN ("
+        "'prerequisite','related','similar_pattern','contrasts_with','used_in_scenario',"
+        "'contrast','composition','diagnostic')),"
+        "confidence TEXT NOT NULL CHECK (confidence IN ('explicit','implicit','suggested','derived')),"
+        "rationale TEXT, created_at TEXT NOT NULL,"
+        "FOREIGN KEY (source_node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE,"
+        "FOREIGN KEY (target_node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE,"
+        "UNIQUE (source_node_id, target_node_id, type));"
+        "INSERT INTO ability_edges_new SELECT * FROM ability_edges;"
+        "DROP TABLE ability_edges;"
+        "ALTER TABLE ability_edges_new RENAME TO ability_edges;"
+    ),
 }
 
 

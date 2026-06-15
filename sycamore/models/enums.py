@@ -62,6 +62,9 @@ class EdgeType(StrEnum):
     SIMILAR_PATTERN = "similar_pattern"
     CONTRASTS_WITH = "contrasts_with"
     USED_IN_SCENARIO = "used_in_scenario"
+    CONTRAST = "contrast"
+    COMPOSITION = "composition"
+    DIAGNOSTIC = "diagnostic"
 
 
 class NodeType(StrEnum):

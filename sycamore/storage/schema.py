@@ -1,6 +1,6 @@
 """SQLite schema definitions for Sycamore."""
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA_STATEMENTS: tuple[str, ...] = (
     """
@@ -76,7 +76,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         source_node_id TEXT NOT NULL,
         target_node_id TEXT NOT NULL,
         type TEXT NOT NULL CHECK (
-            type IN ('prerequisite', 'related', 'similar_pattern', 'contrasts_with', 'used_in_scenario')
+            type IN ('prerequisite', 'related', 'similar_pattern', 'contrasts_with', 'used_in_scenario', 'contrast', 'composition', 'diagnostic')
         ),
         confidence TEXT NOT NULL CHECK (confidence IN ('explicit', 'implicit', 'suggested', 'derived')),
         rationale TEXT,

@@ -11,6 +11,7 @@ from sycamore.core.completion import CompletionState, assess_completion
 from sycamore.core.doctor_service import run_doctor
 from sycamore.core.edit_service import EditError, edit_node_block, get_edit_blocks
 from sycamore.core.graph_service import GraphError, build_domain_graph
+from sycamore.core.path_service import PathError, build_path_report
 from sycamore.core.transfer_service import (
     TransferError,
     TransferLevel,
@@ -41,7 +42,7 @@ from sycamore.core.review_service import (
     run_review,
 )
 from sycamore.models.enums import CaptureKind, ClaimedLevel, EdgeType, UserDecision
-from sycamore.core.status_service import list_domain_status, list_stale_nodes, list_weak_nodes
+from sycamore.core.status_service import list_cluster_risk, list_domain_status, list_stale_nodes, list_weak_nodes
 from sycamore.core.sync_service import sync_nodes
 from sycamore.storage.database import DatabaseError
 
@@ -453,14 +454,18 @@ def status(
         str | None,
         typer.Option("--completion", help="Filter by completion state: draft, modeled, contrasted, reviewable."),
     ] = None,
+    cluster_risk: Annotated[
+        bool,
+        typer.Option("--cluster-risk", help="Show domain-level failure density analysis."),
+    ] = False,
 ) -> None:
     """Show node status summaries."""
-    flags = [stale, bool(domain), weak, bool(completion)]
+    flags = [stale, bool(domain), weak, bool(completion), cluster_risk]
     if sum(flags) > 1:
-        console.print("[red]Choose exactly one of --stale, --domain, --weak, or --completion.[/red]")
+        console.print("[red]Choose exactly one of --stale, --domain, --weak, --completion, or --cluster-risk.[/red]")
         raise typer.Exit(code=1)
     if sum(flags) == 0:
-        console.print("[red]Provide --stale, --domain, --weak, or --completion.[/red]")
+        console.print("[red]Provide --stale, --domain, --weak, --completion, or --cluster-risk.[/red]")
         raise typer.Exit(code=1)
 
     if completion:
@@ -513,6 +518,39 @@ def status(
                 "reviewable": "[green]reviewable[/green]",
             }
             table.add_row(title_text, ntype, state_styles.get(state_text, state_text), missing_text)
+
+        console.print(table)
+        return
+
+    if cluster_risk:
+        try:
+            report = list_cluster_risk()
+        except DatabaseError as error:
+            _handle_database_error(error)
+
+        if not report.entries:
+            console.print("[green]No failure clusters detected.[/green]")
+            return
+
+        table = Table(title="Cluster Risk Analysis")
+        table.add_column("Domain")
+        table.add_column("Nodes")
+        table.add_column("Recover Fails")
+        table.add_column("Transfer Fails")
+        table.add_column("Density")
+        table.add_column("Risk")
+
+        for e in report.entries:
+            density = f"{e.total_fails / max(e.node_count, 1):.1f}"
+            risk_color = {"high": "red", "medium": "yellow", "low": "dim"}.get(e.risk_level, "")
+            table.add_row(
+                e.domain,
+                str(e.node_count),
+                str(e.recover_fails),
+                str(e.transfer_fails),
+                density,
+                f"[{risk_color}]{e.risk_level}[/{risk_color}]",
+            )
 
         console.print(table)
         return
@@ -1172,6 +1210,36 @@ def challenge(
     console.print(
         f"\n[dim]Self-assess: [cyan]syca transfer {node_id} --level {level.value} --outcome success|partial|fail[/cyan][/dim]"
     )
+
+
+@app.command()
+def path(
+    domain: Annotated[
+        str,
+        typer.Option("--domain", help="Domain to show learning paths for."),
+    ],
+) -> None:
+    """Show prerequisite + composition chains within a domain."""
+    try:
+        report = build_path_report(domain)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except PathError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[bold]Domain: {domain}[/bold]")
+    if report.chains:
+        console.print("\n[bold]Paths:[/bold]")
+        for i, chain in enumerate(report.chains, 1):
+            names = " → ".join(n.title for n in chain.nodes)
+            console.print(f"  {i}. {names}")
+    if report.unlinked:
+        names = ", ".join(n.title for n in report.unlinked)
+        console.print(f"\n[dim][unlinked][/dim] {names}")
+
+    if not report.chains and not report.unlinked:
+        console.print("[yellow]No nodes found.[/yellow]")
 
 
 def main() -> None:
