@@ -744,7 +744,11 @@ def recover(
             hint = lines[0] if lines else drill.cheatsheet[:80]
             console.print(f"\n[dim]Hint (first line of Cheatsheet):[/dim] {hint[:120]}")
         console.print("\nPress Enter when ready to see the answer...")
-        # In CLI: just show a separator; in interactive mode this would wait for input
+        try:
+            input()  # wait for user to press Enter
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Drill cancelled.[/yellow]")
+            return
         console.print("[dim]─" * 60 + "[/dim]")
 
     console.print("\n[bold]Mental Model[/bold]")

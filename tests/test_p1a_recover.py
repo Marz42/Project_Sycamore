@@ -297,7 +297,7 @@ def test_recover_cli_recall_first_default(syca_home: Path, monkeypatch: pytest.M
     _write_mental_model(syca_home, node_id, "grep filters lines by pattern.")
 
     runner = CliRunner()
-    result = runner.invoke(app, ["recover", node_id])
+    result = runner.invoke(app, ["recover", node_id], input="\n")
     assert result.exit_code == 0
     assert "Recall challenge" in result.stdout
     assert "grep filters" in result.stdout
