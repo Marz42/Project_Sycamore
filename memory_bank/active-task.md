@@ -6,15 +6,30 @@
 
 # 当前焦点
 
-P1 能力校准与 DeepSeek Provider 已完成。P2 核心命令已交付，当前处于 **真实使用验证期**。
+P0–P2 已交付，当前处于 **真实使用验证期**。下一阶段：**Phase 1A-0 NodeType 基础设施**（优先级最高，为 Phase 1A recover 改造铺路）。
 
-P0 主循环：
+当前命令流：
 
-> init -> capture -> inbox -> promote -> query --cheat -> sync -> doctor
+> init → capture → inbox → promote → query --cheat → sync → doctor → practice / review / recover → link → graph / status
 
 ---
 
-# 本轮文档校准 Check-list
+# 本轮任务：Phase 1A-0 NodeType 基础设施
+
+- [ ] 新增 `NodeType` 枚举（`capability` / `concept` / `theorem` / `process`）
+- [ ] `AbilityNode` 模型新增 `node_type` 字段
+- [ ] SQLite `ability_nodes` 表新增 `node_type` 列（默认 `capability`），`SCHEMA_VERSION` → 2
+- [ ] 四种类型的 Markdown 模板（`markdown_writer.py`）
+- [ ] `promote --type` CLI 参数 + service 逻辑
+- [ ] `sync` 解析 front matter `type` 写入索引
+- [ ] `doctor` 校验 `type` 为合法枚举值
+- [ ] 现有节点 sync 时自动补齐默认 `capability`
+- [ ] 测试覆盖：四种模板结构、sync 默认值、doctor 校验、promote --type CLI
+- [ ] 版本号升至 `v0.11.2`
+
+---
+
+# 已完成的文档校准 Check-list
 
 - [x] 更新 `project-brief.md`，加入 Capture-first、渐进式升格、字段所有权、能力新鲜度和 ReviewRun。
 - [x] 创建 `roadmap.md`，定义稳健技术栈、阶段路线、退出标准和风险门控。

@@ -101,9 +101,9 @@ Project_Sycamore/
 │   ├── review/                  # P1: LLM Provider、Prompt、评审解析
 │   └── utils/                   # 纯工具函数
 ├── tests/                       # 单元测试和 CLI 集成测试
-├── docs/                        # 面向用户的使用文档，后续再建立
 ├── pyproject.toml               # Python 项目配置
-└── VERSION                      # 版本号真实来源
+├── VERSION                      # 版本号真实来源
+└── README.md                    # 项目说明（中文）
 ```
 
 ---

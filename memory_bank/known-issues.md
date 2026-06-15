@@ -40,7 +40,7 @@
 
 **症状**: SQLite 中的节点记录可能指向不存在的 Markdown 文件，或 Markdown Front Matter 与数据库状态不一致。  
 **根因**: Markdown 和 SQLite 分别承担正文与索引职责，天然存在同步边界。  
-**解决方案**: 以 Markdown 正文为准，提供 `syca doctor` 和 `syca index rebuild`。写入流程必须保证失败回滚。  
+**解决方案**: 以 Markdown 正文为准，提供 `syca doctor` 和 `syca sync` 重建索引。写入流程必须保证失败回滚。  
 **发现日期**: 2026-06-11  
 **关联 ADR**: ADR-004
 

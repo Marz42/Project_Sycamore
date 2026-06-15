@@ -69,6 +69,7 @@ Sycamore 的产品逻辑分为六层，外加跨层的 LLM 智能服务层：
 # 路线总览
 
 ```text
+Phase 1A-0 ── NodeType 基础设施
 Phase 1A ── Recover 改造（提取优先）
 Phase 1B ── Scheduler 引入
        ↓
@@ -132,6 +133,75 @@ syca status --domain <name>   # 域内新鲜度
 syca practice <node>          # 追加实践记录
 syca level set <node> L0-L3   # 调整等级
 ```
+
+---
+
+# Phase 1A-0：NodeType 基础设施
+
+> **目标**：落地四种节点类型（Capability / Concept / Theorem / Process），让后续 recover、review、transfer 具备类型感知能力。
+>
+> 估算周期：**0.5 周** | 纯数据模型 + 模板 + CLI 参数，不改变现有命令语义
+
+## 为什么在 Phase 1A 之前做？
+
+Phase 1A 的 recover recall-first prompt 因类型而异（Capability 问步骤、Concept 问核心主张、Theorem 问直觉推导、Process 问机理），Phase 1B 的 FSRS 调度器需要按类型调整初始参数。没有 NodeType，后续所有阶段都要走"统一措辞"的妥协方案。
+
+## 核心命令
+
+```bash
+syca promote <id> --type capability   # 默认，操作能力
+syca promote <id> --type concept      # 概念框架
+syca promote <id> --type theorem      # 定理模型
+syca promote <id> --type process      # 系统机制
+```
+
+不指定 `--type` 时默认 `capability`，保证向后兼容。
+
+## 交付物
+
+### NodeType 枚举
+
+- `sycamore/models/enums.py` 新增 `NodeType` StrEnum
+- 四种值：`capability` / `concept` / `theorem` / `process`
+- 每种类型携带：适用领域、核心关注点、考核方式（见 `data-contracts.md`）
+
+### AbilityNode 模型扩展
+
+- `AbilityNode` dataclass 新增 `node_type: str` 字段
+- 默认值 `"capability"`
+
+### SQLite Schema v2
+
+- `ability_nodes` 表新增 `node_type TEXT NOT NULL DEFAULT 'capability'`
+- `SCHEMA_VERSION` 升至 2
+- 现有数据库 `sync` 时自动补齐默认值（不强制迁移）
+
+### Markdown 模板
+
+- 四种 `promote` 模板：`capability`（Steps/Pitfalls/Cheatsheet）、`concept`（Core Thesis/Historical Context/Critique/Apply To）、`theorem`（Formula/Intuition/Boundary Conditions/Counterexamples）、`process`（Mechanism/Parameters/Disturbance Response）
+- Front matter 新增 `type: "capability"` 字段
+- `sync` 从 front matter 读取 `type` 写入 `ability_nodes.node_type`
+- `doctor` 校验 `type` 为合法枚举值
+
+### promote_service 扩展
+
+- 根据 `--type` 选择对应模板
+- 种子化区块按类型差异化
+
+## 退出标准
+
+- `promote --type` 四种类型各自生成不同模板结构
+- `sync` 正确将 front matter `type` 写入 SQLite
+- `doctor` 报告非法 `type` 值
+- 现有节点（无 `node_type`）sync 后默认设为 `capability`
+- 测试覆盖：四种模板生成、sync 默认值、doctor 非法 type
+- **Phase 1A-0 完成即发版**，版本号升至 **v0.11.2**
+
+## 不做
+
+- 不改动现有 capture / inbox / query / status 逻辑
+- 不引入 interactive clarify（那是 Phase 2）
+- 不改变 recover / review 的现有行为（类型感知留到 Phase 1A/1B）
 
 ---
 
@@ -335,10 +405,10 @@ syca check <node>                  # 检查节点完成度（draft/modeled/contr
 syca clarify <capture-id>          # 归类引导 + 能力断言草稿
 
 # 升格时指定节点类型
-syca promote <id> --type command
+syca promote <id> --type capability
 syca promote <id> --type concept
-syca promote <id> --type failure
-syca promote <id> --type pattern
+syca promote <id> --type theorem
+syca promote <id> --type process
 ```
 
 ## 交付物
@@ -360,21 +430,21 @@ syca promote <id> --type pattern
 
 - 位于 `capture` 和 `promote` 之间（非必选，可用 `--no-interactive` 跳过）
 - 交互式问三个问题：
-  1. 这是命令还是概念还是故障还是组合模式？→ 建议 `--type`
+  1. 这是操作能力、概念框架、定理模型还是系统机制？→ 建议 `--type`
   2. 它解决什么具体问题？→ 建议能力断言草稿
   3. 你现在是"看懂了"还是会"自己做了"？→ 建议初始 claimed level
 - 根据回答生成更准确的 promote 参数建议，但不强制采纳
 
 ### 节点类型模板
 
-每种类型有不同的 Markdown 模板结构：
+每种类型有不同的 Markdown 模板结构与考核方式（详见 `data-contracts.md` NodeType 枚举）：
 
-| 类型 | 特有区块 | 示例 |
-|:--|:--|:--|
-| `command` | 语法 / 常用参数 / 典型管道 | `ls -la`、`grep` |
-| `concept` | Core Idea / Boundaries / Contrast / Minimal Task | 权限位、cwd |
-| `failure` | 现象 / 根因 / 排查步 / 解决方案 | 端口占用 |
-| `pattern` | 适用场景 / 组合结构 / 变体 / 注意事项 | `find \| xargs \| grep` |
+| 类型 | 适用领域 | 核心区块 | 考核方式 |
+|:--|:--|:--|:--|
+| `capability` | IT、软件操作、外语 | 步骤 / 坑点 / Cheatsheet | 给定场景下能否正确执行？ |
+| `concept` | 哲学、历史、经济、管理 | 核心主张 / 历史语境 / 批判 | 能否用该框架分析新事件？ |
+| `theorem` | 数学、物理、算法 | 公式 / 直觉推导 / 极值边界 | 边界失效时能否识别反例？ |
+| `process` | 化工、机械、生物 | 机理 / 参数妥协 / 物理安全 | 外部扰动时如何调节参数？ |
 
 ### 扩展 Mental Model 固定块
 
@@ -405,7 +475,7 @@ syca promote <id> --type pattern
 ## 退出标准
 
 - `clarify` 能在 capture 和 promote 之间正确归类节点类型
-- `promote --type command|concept|failure|pattern` 生成不同的模板结构
+- `promote --type capability|concept|theorem|process` 生成不同的模板结构
 - `syca edit <node>` 按区块引导填入，每个区块之前展示提示问题
 - `syca check <node>` 正确报告完成度状态和缺失区块
 - 四类节点类型的 Markdown 模板均包含 `Contrast` 和 `Minimal Task`
