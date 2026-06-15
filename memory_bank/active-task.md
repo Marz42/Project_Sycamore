@@ -6,7 +6,7 @@
 
 # 当前焦点
 
-P0–P2 已交付，Phase 1A-0 / 1A 已完成。当前阶段：**Phase 1B FSRS Scheduler**（FSRS-5 间隔重复调度器 + `syca schedule`）。
+P0–P2 已交付，Phase 1A-0 / 1A / 1B 已完成。当前阶段：**Phase 2 完成**（clarify + edit + check + completion）。下一步：**Phase 3 迁移层**或**Phase 4 图谱增强**。
 
 当前命令流：
 

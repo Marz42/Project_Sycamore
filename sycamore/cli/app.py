@@ -6,7 +6,10 @@ from rich.table import Table
 
 from sycamore import __version__
 from sycamore.core.capture_service import create_capture, list_inbox
+from sycamore.core.clarify_service import ClarifyError, suggest_promotion
+from sycamore.core.completion import CompletionState, assess_completion
 from sycamore.core.doctor_service import run_doctor
+from sycamore.core.edit_service import EditError, edit_node_block, get_edit_blocks
 from sycamore.core.graph_service import GraphError, build_domain_graph
 from sycamore.core.graph_render import format_domain_graph_text
 from sycamore.core.init_service import initialize_sycamore
@@ -439,15 +442,73 @@ def status(
     stale: Annotated[bool, typer.Option("--stale", help="Show nodes needing recovery practice.")] = False,
     domain: Annotated[str | None, typer.Option("--domain", help="Show freshness for a domain.")] = None,
     weak: Annotated[bool, typer.Option("--weak", help="Show weakness analysis (failure patterns).")] = False,
+    completion: Annotated[
+        str | None,
+        typer.Option("--completion", help="Filter by completion state: draft, modeled, contrasted, reviewable."),
+    ] = None,
 ) -> None:
-    """Show node status summaries (stale, domain freshness, or weakness analysis)."""
-    flags = [stale, bool(domain), weak]
+    """Show node status summaries."""
+    flags = [stale, bool(domain), weak, bool(completion)]
     if sum(flags) > 1:
-        console.print("[red]Choose exactly one of --stale, --domain, or --weak.[/red]")
+        console.print("[red]Choose exactly one of --stale, --domain, --weak, or --completion.[/red]")
         raise typer.Exit(code=1)
     if sum(flags) == 0:
-        console.print("[red]Provide --stale, --domain, or --weak.[/red]")
+        console.print("[red]Provide --stale, --domain, --weak, or --completion.[/red]")
         raise typer.Exit(code=1)
+
+    if completion:
+        valid_states = {s.value for s in CompletionState}
+        if completion not in valid_states:
+            console.print(
+                f"[red]Invalid completion state '{completion}'. "
+                f"Choose: {', '.join(sorted(valid_states))}.[/red]"
+            )
+            raise typer.Exit(code=1)
+
+        from sycamore.storage.database import open_initialized_database
+        from sycamore.storage.markdown_parser import parse_node_markdown
+        from sycamore.storage.node_repository import list_all_nodes
+        from sycamore.utils.paths import get_database_path, get_syca_home
+
+        root = get_syca_home()
+        conn = open_initialized_database(get_database_path(root))
+        try:
+            nodes = list_all_nodes(conn)
+        finally:
+            conn.close()
+
+        matched: list[tuple[str, str, str, str]] = []
+        for node in nodes:
+            node_file = root / node.node_path
+            if not node_file.exists():
+                continue
+            parsed = parse_node_markdown(node_file)
+            report = assess_completion(parsed)
+            if report.state.value == completion:
+                missing = ", ".join(report.missing) if report.missing else "—"
+                matched.append((node.title, report.state.value, node.node_type, missing))
+
+        if not matched:
+            console.print(f"[green]No nodes with completion state '{completion}'.[/green]")
+            return
+
+        table = Table(title=f"Completion: {completion}")
+        table.add_column("Title")
+        table.add_column("Type")
+        table.add_column("State")
+        table.add_column("Missing")
+
+        for title_text, state_text, ntype, missing_text in matched:
+            state_styles = {
+                "draft": "[red]draft[/red]",
+                "modeled": "[yellow]modeled[/yellow]",
+                "contrasted": "[cyan]contrasted[/cyan]",
+                "reviewable": "[green]reviewable[/green]",
+            }
+            table.add_row(title_text, ntype, state_styles.get(state_text, state_text), missing_text)
+
+        console.print(table)
+        return
 
     if stale:
         try:
@@ -796,6 +857,153 @@ def schedule(
         console.print(table)
     finally:
         connection.close()
+
+
+def _handle_clarify_error(error: ClarifyError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+def _handle_edit_error(error: EditError) -> None:
+    console.print(f"[red]{error}[/red]")
+    raise typer.Exit(code=1) from error
+
+
+@app.command()
+def clarify(
+    capture_id: Annotated[
+        str | None,
+        typer.Argument(help="Capture id or unique prefix. Omit for latest."),
+    ] = None,
+) -> None:
+    """Analyze a CaptureItem and suggest promote parameters."""
+    try:
+        suggestion = suggest_promotion(capture_id)
+    except DatabaseError as error:
+        _handle_database_error(error)
+    except ClarifyError as error:
+        _handle_clarify_error(error)
+
+    console.print(f"[bold]Capture:[/bold] {suggestion.capture.content[:120]}")
+    console.print(f"[bold]Suggested type:[/bold] [cyan]{suggestion.suggested_type}[/cyan]")
+    console.print(f"[bold]Suggested title:[/bold] {suggestion.suggested_title}")
+    if suggestion.suggested_domain:
+        console.print(f"[bold]Suggested domain:[/bold] {suggestion.suggested_domain}")
+    console.print(f"[bold]Suggested level:[/bold] {suggestion.suggested_level.value}")
+    console.print(f"[dim]{suggestion.rationale}[/dim]")
+    console.print(
+        f"\n[bold]Next:[/bold] [cyan]syca promote {suggestion.capture.id[:8]} "
+        f"--type {suggestion.suggested_type} "
+        f"--title \"{suggestion.suggested_title}\""
+        f"{' --domain ' + suggestion.suggested_domain if suggestion.suggested_domain else ''}"
+        f" --claimed-level {suggestion.suggested_level.value}[/cyan]"
+    )
+
+
+@app.command()
+def edit(
+    node_id: str,
+    block: Annotated[
+        str | None,
+        typer.Option("--block", help="Edit a specific block only."),
+    ] = None,
+) -> None:
+    """Interactively edit an AbilityNode's blocks with guided prompts."""
+    from rich.prompt import Prompt
+
+    try:
+        from sycamore.core.node_context import load_node_context
+        from sycamore.storage.database import open_initialized_database
+        from sycamore.utils.paths import get_database_path, get_syca_home
+
+        root = get_syca_home()
+        connection = open_initialized_database(get_database_path(root))
+        context = load_node_context(connection, node_id, home=root)
+        connection.close()
+    except Exception:
+        console.print(f"[red]Node not found: {node_id}[/red]")
+        raise typer.Exit(code=1) from None
+
+    node_type = context.node.node_type
+    blocks = get_edit_blocks(node_type)
+
+    if block:
+        blocks = [(b, p) for b, p in blocks if b == block]
+        if not blocks:
+            console.print(f"[red]Unknown block '{block}' for type '{node_type}'.[/red]")
+            raise typer.Exit(code=1)
+
+    for block_name, prompt_text in blocks:
+        console.print(f"\n[bold cyan]━━ {block_name} ━━[/bold cyan]")
+        console.print(f"[dim]{prompt_text}[/dim]")
+
+        from sycamore.storage.markdown_parser import extract_section, parse_node_markdown
+
+        parsed = parse_node_markdown(context.node_file)
+        current = extract_section(parsed.body, block_name)
+        if current and current.strip():
+            preview = current.strip()[:200]
+            console.print(f"[dim]Current:[/dim] {preview}")
+
+        try:
+            new_text = Prompt.ask("→", default="")
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Edit cancelled.[/yellow]")
+            return
+
+        if new_text.strip() == "":
+            console.print("[dim]Skipped.[/dim]")
+            continue
+
+        try:
+            edit_node_block(node_id, block_name, new_text)
+            console.print(f"[green]✓ {block_name} updated.[/green]")
+        except EditError as error:
+            _handle_edit_error(error)
+            return
+
+    console.print("\n[green]Edit session complete.[/green]")
+
+
+@app.command()
+def check(
+    node_id: str,
+) -> None:
+    """Check an AbilityNode's completion state."""
+    try:
+        from sycamore.core.node_context import load_node_context
+        from sycamore.storage.database import open_initialized_database
+        from sycamore.storage.markdown_parser import parse_node_markdown
+        from sycamore.utils.paths import get_database_path, get_syca_home
+
+        root = get_syca_home()
+        connection = open_initialized_database(get_database_path(root))
+        context = load_node_context(connection, node_id, home=root)
+        connection.close()
+
+        parsed = parse_node_markdown(context.node_file)
+        report = assess_completion(parsed)
+
+        state_styles = {
+            CompletionState.DRAFT: "[red]draft[/red]",
+            CompletionState.MODELED: "[yellow]modeled[/yellow]",
+            CompletionState.CONTRASTED: "[cyan]contrasted[/cyan]",
+            CompletionState.REVIEWABLE: "[green]reviewable[/green]",
+        }
+        console.print(f"[bold]{report.node_title}[/bold]")
+        console.print(f"State: {state_styles.get(report.state, report.state.value)}")
+        console.print(f"Type: {context.node.node_type}")
+
+        if report.missing:
+            console.print(f"[yellow]Missing blocks:[/yellow] {', '.join(report.missing)}")
+            console.print(
+                f"[dim]Run [cyan]syca edit {node_id[:8]}[/cyan] to fill them.[/dim]"
+            )
+        else:
+            console.print("[green]All blocks filled![/green]")
+    except Exception:
+        console.print(f"[red]Node not found: {node_id}[/red]")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
