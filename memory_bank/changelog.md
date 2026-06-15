@@ -6,6 +6,36 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-06-15
+
+### Added
+
+- `syca path --domain`：域内 prerequisite+composition 学习路径链展示。
+- `syca status --cluster-risk`：按领域分析 recover/transfer 失败密度。
+- 三种新 EdgeType：`contrast` / `composition` / `diagnostic`。
+- `core/path_service.py`：路径链构建引擎。
+
+### Changed
+
+- `ability_edges` 表 CHECK 扩展（schema v5，v4→v5 迁移）。
+
+---
+
+## [0.16.0] - 2026-06-15
+
+### Added
+
+- `syca transfer`：四级迁移场景生成（A 变式 / B 边界 / C 组合 / D 真实）。
+- `syca challenge`：随机领域挑战。
+- `core/transfer_service.py`：场景生成（LLM+mock fallback）与结果记录。
+- 三种新 CapabilityEventType：`transfer_success` / `transfer_partial` / `transfer_fail`。
+
+### Changed
+
+- `capability_events` 表 CHECK 扩展（schema v4，v3→v4 迁移）。
+
+---
+
 ## [0.12.0] - 2026-06-15
 
 ### Added

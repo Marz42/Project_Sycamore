@@ -69,20 +69,19 @@ Sycamore 的产品逻辑分为六层，外加跨层的 LLM 智能服务层：
 # 路线总览
 
 ```text
-Phase 1A-0 ── NodeType 基础设施
-Phase 1A ── Recover 改造（提取优先）
-Phase 1B ── Scheduler 引入
+Phase 1A-0 ── ✅ NodeType 基础设施
+Phase 1A   ── ✅ Recover 改造（提取优先）
+Phase 1B   ── ✅ Scheduler 引入
        ↓
-Phase 2A ── Clarify + Completion 引擎
-Phase 2B ── Edit + Check 编辑引导
+Phase 2A   ── ✅ Clarify + Completion 引擎
+Phase 2B   ── ✅ Edit + Check 编辑引导
+Phase 2C   ── ✅ LLM 辅助填充
        ↓
-Phase 2C ── LLM 辅助填充（待定）
+Phase 3    ── ✅ 迁移与应用层
        ↓
-Phase 3  ── 迁移与应用层
+Phase 4    ── ✅ 图谱增强
        ↓
-Phase 4  ── 图谱增强（先服务迁移层）
-       ↓
-Phase 5  ── LLM 服务扩展与资产层候选
+Phase 5    ── 🔴 LLM 服务扩展与资产层候选（条件触发）
 ```
 
 > Phase 1A 和 1B 分开是为了把"产品机制变化"（recover 改造）和"算法变化"（FSRS 调度器）解耦——
@@ -92,7 +91,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 
 # Phase 0：历史交付（已完成）
 
-> 当前状态：**v0.15.0** — P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B / 2C 完成
+> 当前状态：**v0.17.0** — P0–P2 全部交付，Phase 1A-0 / 1A / 1B / 2A / 2B / 2C / 3 / 4 完成
 
 ## 已完成的阶段
 
@@ -109,6 +108,8 @@ Phase 5  ── LLM 服务扩展与资产层候选
 | Phase 2A | v0.14.0 | clarify / completion 引擎 / placeholder 检测 |
 | Phase 2B | v0.14.0 | edit / check / status --completion |
 | Phase 2C | v0.15.0 | LLM suggest_fill / edit --suggest |
+| Phase 3 | v0.16.0 | transfer / challenge / scenario generation |
+| Phase 4 | v0.17.0 | path view / cluster risk / contrast+composition+diagnostic edges |
 
 ## 当前已有功能清单
 
