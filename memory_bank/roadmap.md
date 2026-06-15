@@ -89,7 +89,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 
 # Phase 0：历史交付（已完成）
 
-> 当前状态：**v0.11.1** — P0–P2 全部交付
+> 当前状态：**v0.11.2** — P0–P2 全部交付，Phase 1A-0 完成
 
 ## 已完成的阶段
 
@@ -100,6 +100,7 @@ Phase 5  ── LLM 服务扩展与资产层候选
 | P0.7 Promote 增强 | v0.9.0 | --latest / --index / UUID 前缀 |
 | P1 能力校准 | v0.10.0 | ReviewRun / mock+DeepSeek Provider / practice / stale / level set |
 | P2 恢复与关系 | v0.11.1 | recover / link / graph / status --domain |
+| Phase 1A-0 | v0.11.2 | NodeType 枚举 / 四种模板 / promote --type / schema v2 |
 
 ## 当前已有功能清单
 

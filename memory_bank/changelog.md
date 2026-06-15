@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-06-12
+
+### Added
+
+- `NodeType` 枚举：`capability` / `concept` / `theorem` / `process`。
+- `promote --type` 参数：升格时指定节点类型，默认 `capability`。
+- 四种 Markdown 模板：capability（Steps/Pitfalls/Cheatsheet）、concept（Core Thesis/Historical Context/Critique/Apply To）、theorem（Formula/Intuition/Boundary Conditions/Counterexamples）、process（Mechanism/Parameters/Disturbance Response）。
+- Markdown front matter 新增 `type` 字段。
+
+### Changed
+
+- SQLite schema v2：`ability_nodes` 表新增 `node_type` 列，`SCHEMA_VERSION` → 2。
+- `sync` 从 front matter 解析 `type`，非法值默认回退为 `capability`。
+- `doctor` 校验 `type` 合法性。
+- `database.py` 新增迁移机制，v1 数据库自动添加 `node_type` 列。
+
 ---
 
 ## [0.11.1] - 2026-06-11

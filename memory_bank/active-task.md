@@ -6,7 +6,7 @@
 
 # 当前焦点
 
-P0–P2 已交付，当前处于 **真实使用验证期**。下一阶段：**Phase 1A-0 NodeType 基础设施**（优先级最高，为 Phase 1A recover 改造铺路）。
+P0–P2 已交付，Phase 1A-0 已完成。当前阶段：**Phase 1A Recover 改造**（recall-first + fail-type + status --weak）。
 
 当前命令流：
 
@@ -26,6 +26,22 @@ P0–P2 已交付，当前处于 **真实使用验证期**。下一阶段：**Ph
 - [x] 现有节点 sync 时自动补齐默认 `capability`
 - [x] 测试覆盖：14 项新测试（templates/sync/doctor/CLI/migration）
 - [x] 版本号升至 `v0.11.2`
+- [x] Memory bank 全量同步（changelog / roadmap / project-brief）
+
+---
+
+# 本轮任务：Phase 1A Recover 改造
+
+- [ ] `recover --mode recall-first`：先展示标题+线索，用户回忆后再展开
+- [ ] `recover --mode supported`：展示局部提示
+- [ ] `recover --mode full`：完整展示（保留旧行为作为 fallback）
+- [ ] `recover --hard` / `--easy`：四级评分（hard/good/easy 补充现有 pass/fail）
+- [ ] `recover --fail-type recall|concept|procedure|transfer`：失败分类
+- [ ] `capability_events.payload_json` 写入 fail-type 数据
+- [ ] `syca status --weak`：薄弱画像（按节点/领域展示失败类型分布）
+- [ ] 类型感知 recover prompt：Capability 问步骤、Concept 问核心主张、Theorem 问直觉、Process 问机理
+- [ ] 测试覆盖：三种模式、fail-type 持久化、weak 列表、类型感知 prompt
+- [ ] 版本号升至 `v0.12.0`
 
 ---
 
