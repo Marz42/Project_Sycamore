@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-15
+
+### Added
+
+- `recover --mode recall-first`（新默认）：先展示标题+类型感知提示，用户回忆后再展开完整答案。
+- `recover --mode supported`：展示 Cheatsheet 首行提示。
+- `recover --mode full`：完整展示模式（保留旧行为）。
+- `recover --hard` / `--easy`：四级 FSRS 兼容评分（fail/hard/pass/easy）。
+- `recover --fail-type recall|concept|procedure|transfer`：失败分类，写入 `payload_json`。
+- `syca status --weak`：薄弱画像分析（失败次数、主要失败类型、风险等级）。
+- NodeType 感知 recall prompt：Capability 问步骤、Concept 问核心主张、Theorem 问直觉、Process 问机理。
+
+### Changed
+
+- `record_recovery_outcome` 重构：支持 `rating` 和 `fail_type` 参数，payload 写入结构化数据。
+- `status` 命令互斥逻辑扩展为三选一（--stale / --domain / --weak）。
+
+---
+
 ## [0.11.2] - 2026-06-12
 
 ### Added

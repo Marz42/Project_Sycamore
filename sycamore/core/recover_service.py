@@ -15,6 +15,11 @@ from sycamore.storage.database import open_initialized_database
 from sycamore.storage.markdown_parser import extract_section
 from sycamore.utils.paths import get_database_path, get_syca_home
 from sycamore.utils.time import utc_now_iso
+from sycamore.core.scheduler import (
+    SchedulerState,
+    init_state,
+    update_state,
+)
 
 MENTAL_MODEL_SECTION = "Mental Model"
 CHEATSHEET_SECTION = "Cheatsheet"
@@ -179,6 +184,10 @@ def record_recovery_outcome(
                     timestamp,
                 ),
             )
+
+            # ── Update FSRS scheduler state ──────────────────────────
+            _update_scheduler_state(connection, context.node.id, effective_rating, timestamp)
+
         return RecoveryResult(
             node=context.node,
             passed=effective_passed,
@@ -190,3 +199,66 @@ def record_recovery_outcome(
         raise RecoverError(str(error)) from error
     finally:
         connection.close()
+
+
+def _get_scheduler_row(connection, node_id: str):
+    return connection.execute(
+        "SELECT * FROM node_scheduler_state WHERE node_id = ?;",
+        (node_id,),
+    ).fetchone()
+
+
+def _update_scheduler_state(
+    connection, node_id: str, rating: str, timestamp: str
+) -> None:
+    row = _get_scheduler_row(connection, node_id)
+    if row is None:
+        state = init_state(rating, now_iso=timestamp)
+        connection.execute(
+            """
+            INSERT INTO node_scheduler_state
+                (node_id, stability, difficulty, due_at, last_review_at, last_rating, review_count, lapse_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                node_id,
+                state.stability,
+                state.difficulty,
+                state.due_at,
+                state.last_review_at,
+                state.last_rating,
+                state.review_count,
+                state.lapse_count,
+            ),
+        )
+    else:
+        current = SchedulerState(
+            node_id=row["node_id"],
+            stability=row["stability"],
+            difficulty=row["difficulty"],
+            due_at=row["due_at"],
+            last_review_at=row["last_review_at"],
+            last_rating=row["last_rating"],
+            review_count=row["review_count"],
+            lapse_count=row["lapse_count"],
+        )
+        updated = update_state(current, rating, now_iso=timestamp)
+        connection.execute(
+            """
+            UPDATE node_scheduler_state
+            SET stability = ?, difficulty = ?, due_at = ?,
+                last_review_at = ?, last_rating = ?,
+                review_count = ?, lapse_count = ?
+            WHERE node_id = ?;
+            """,
+            (
+                updated.stability,
+                updated.difficulty,
+                updated.due_at,
+                updated.last_review_at,
+                updated.last_rating,
+                updated.review_count,
+                updated.lapse_count,
+                node_id,
+            ),
+        )

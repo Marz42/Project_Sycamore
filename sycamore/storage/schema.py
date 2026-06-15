@@ -1,6 +1,6 @@
 """SQLite schema definitions for Sycamore."""
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_STATEMENTS: tuple[str, ...] = (
     """
@@ -99,6 +99,19 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         user_decision TEXT NOT NULL CHECK (user_decision IN ('pending', 'accepted', 'ignored', 'revised')),
         raw_output_path TEXT,
         created_at TEXT NOT NULL,
+        FOREIGN KEY (node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS node_scheduler_state (
+        node_id TEXT PRIMARY KEY,
+        stability REAL NOT NULL DEFAULT 0,
+        difficulty REAL NOT NULL DEFAULT 5.0,
+        due_at TEXT,
+        last_review_at TEXT,
+        last_rating INTEGER,
+        review_count INTEGER DEFAULT 0,
+        lapse_count INTEGER DEFAULT 0,
         FOREIGN KEY (node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE
     );
     """,

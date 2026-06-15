@@ -6,7 +6,7 @@
 
 # 当前焦点
 
-P0–P2 已交付，Phase 1A-0 已完成。当前阶段：**Phase 1A Recover 改造**（recall-first + fail-type + status --weak）。
+P0–P2 已交付，Phase 1A-0 / 1A 已完成。当前阶段：**Phase 1B FSRS Scheduler**（FSRS-5 间隔重复调度器 + `syca schedule`）。
 
 当前命令流：
 
@@ -42,6 +42,23 @@ P0–P2 已交付，Phase 1A-0 已完成。当前阶段：**Phase 1A Recover 改
 - [x] 类型感知 recover prompt：Capability 问步骤、Concept 问核心主张、Theorem 问直觉、Process 问机理
 - [x] 测试覆盖：29 项新测试（prompt/modes/ratings/fail-types/weak/CLI）
 - [x] 版本号升至 `v0.12.0`
+- [x] Memory bank 全量同步（changelog / roadmap / project-brief）
+
+---
+
+# 本轮任务：Phase 1B FSRS Scheduler
+
+- [x] 实现 FSRS-5 核心算法（`sycamore/core/scheduler.py`）：R/S/D/I 公式
+- [x] 新增 `node_scheduler_state` SQLite 表（stability/difficulty/due_at 等）
+- [x] 新增 `syca schedule` 命令：列出到期复习项（按 R 升序）
+- [x] `syca schedule --domain` / `--limit` 筛选
+- [x] `config.toml` 新增 `[scheduler]` 段（`desired_retention` / `max_per_session`）
+- [x] 首次 `recover` 时自动初始化 FSRS 状态
+- [x] 每次 `recover` 后更新 S/D/due_at
+- [x] `syca sync` 不覆盖 FSRS 状态
+- [x] `status --stale` 保留作为 legacy（双轨过渡）
+- [x] 测试覆盖：23 项新测试（FSRS 公式 / 状态持久化 / schedule 排序 / CLI）
+- [x] 版本号升至 `v0.13.0`
 
 ---
 

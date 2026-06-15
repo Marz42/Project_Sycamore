@@ -31,6 +31,14 @@ def get_schema_version(connection: sqlite3.Connection) -> int | None:
 
 _MIGRATIONS: dict[int, str] = {
     1: "ALTER TABLE ability_nodes ADD COLUMN node_type TEXT NOT NULL DEFAULT 'capability';",
+    2: (
+        "CREATE TABLE IF NOT EXISTS node_scheduler_state ("
+        "node_id TEXT PRIMARY KEY, stability REAL NOT NULL DEFAULT 0,"
+        "difficulty REAL NOT NULL DEFAULT 5.0, due_at TEXT, last_review_at TEXT,"
+        "last_rating INTEGER, review_count INTEGER DEFAULT 0, lapse_count INTEGER DEFAULT 0,"
+        "FOREIGN KEY (node_id) REFERENCES ability_nodes(id) ON DELETE CASCADE"
+        ");"
+    ),
 }
 
 

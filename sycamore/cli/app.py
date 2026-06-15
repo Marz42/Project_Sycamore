@@ -700,6 +700,105 @@ def graph(
 
 
 @app.command()
+def schedule(
+    domain: Annotated[
+        str | None, typer.Option("--domain", help="Filter to a specific domain.")
+    ] = None,
+    limit: Annotated[
+        int, typer.Option("--limit", help="Max nodes to show.")
+    ] = 20,
+) -> None:
+    """List nodes due for review, ordered by urgency (lowest R first)."""
+    from sycamore.core.scheduler import (
+        DEFAULT_DESIRED_RETENTION,
+        SchedulerState,
+        current_retrievability,
+    )
+    from sycamore.storage.config_store import load_config
+    from sycamore.storage.database import open_initialized_database
+    from sycamore.storage.node_repository import list_all_nodes, list_nodes_by_domain
+    from sycamore.utils.paths import get_config_path, get_database_path, get_syca_home
+    from sycamore.utils.time import utc_now_iso
+
+    root = get_syca_home()
+    connection = open_initialized_database(get_database_path(root))
+    now = utc_now_iso()
+
+    try:
+        nodes = list_nodes_by_domain(connection, domain) if domain else list_all_nodes(connection)
+
+        config = load_config(get_config_path(root))
+        scheduler_cfg = config.get("scheduler", {}) if isinstance(config, dict) else {}
+        desired_retention = (
+            scheduler_cfg.get("desired_retention")
+            if isinstance(scheduler_cfg, dict)
+            else None
+        )
+        if not isinstance(desired_retention, (int, float)):
+            desired_retention = DEFAULT_DESIRED_RETENTION
+
+        entries: list[tuple[float, str, str, str, str, str]] = []
+        for node in nodes:
+            row = connection.execute(
+                "SELECT * FROM node_scheduler_state WHERE node_id = ?;",
+                (node.id,),
+            ).fetchone()
+            if row is None:
+                continue
+            state = SchedulerState(
+                node_id=row["node_id"],
+                stability=row["stability"],
+                difficulty=row["difficulty"],
+                due_at=row["due_at"],
+                last_review_at=row["last_review_at"],
+                last_rating=row["last_rating"],
+                review_count=row["review_count"],
+                lapse_count=row["lapse_count"],
+            )
+            R = current_retrievability(state, now)
+            entries.append((
+                R,
+                node.title,
+                node.domain or "—",
+                node.claimed_level.value,
+                state.due_at or "—",
+                f"{state.stability:.1f}",
+            ))
+
+        entries.sort(key=lambda e: e[0])  # lowest R first
+        entries = entries[:limit]
+
+        if not entries:
+            console.print("[green]No nodes with scheduler state yet. Run some recovers first.[/green]")
+            return
+
+        table = Table(title=f"Schedule (desired retention: {desired_retention:.0%})")
+        table.add_column("#", style="dim", no_wrap=True)
+        table.add_column("Title")
+        table.add_column("Domain")
+        table.add_column("Level")
+        table.add_column("R", justify="right")
+        table.add_column("Due")
+        table.add_column("S", justify="right")
+
+        for i, (R, title, dom, lvl, due, S) in enumerate(entries, 1):
+            r_style = "[red]" if R < 0.7 else "[yellow]" if R < 0.85 else "[green]"
+            table.add_row(
+                str(i),
+                title,
+                dom,
+                lvl,
+                f"{r_style}{R:.1%}[/{r_style}]",
+                due,
+                S,
+            )
+
+        console.print(table)
+    finally:
+        connection.close()
+
+
+@app.command()
 def doctor() -> None:
     """Check local data consistency."""
     try:
